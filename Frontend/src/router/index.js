@@ -9,40 +9,9 @@ import Secure from '@/components/Secure';
 import SurveyUserVote from '@/components/SurveyUserVote';
 import Vue from 'vue';
 import Router from 'vue-router';
-import store from '@/store/index.js';
-/* eslint-disable */
-Vue.use(Router);
+import store from '@/store/index.js'
 
-// const ifNotAuthenticated = (to, from, next) => {
-//   if (!store.getters.isLoggedIn) {
-//     try {
-//     next();
-//     return;
-//     } catch (err) {
-//       console.log(err);
-//     }
-//   }
-//   try {
-//   next('/SigInOrSigUp');
-//   } catch (err) {
-//     console.log(err);
-//   }
-// };
-// const ifAuthenticated = (to, from, next) => {
-//   if (store.getters.isLoggedIn) {
-//     try {
-//       next();
-//       return;
-//     } catch (err) {
-//       console.log(err);
-//     }
-//   }
-//   try {
-//     next('/SigInOrSigUp');
-//   } catch (err) {
-//     console.log(err);
-//   }
-// };
+Vue.use(Router);
 
 const router = new Router({
   routes: [
