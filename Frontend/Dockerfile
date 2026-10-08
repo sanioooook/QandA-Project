@@ -1,4 +1,5 @@
-FROM node:22-alpine AS deps
+# Static files are the same for every architecture, so Node always runs on the build machine's platform.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund

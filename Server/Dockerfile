@@ -1,4 +1,6 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# The build runs on the machine's own platform even for arm64 images: the output is portable IL,
+# so only the small runtime stage needs the target architecture.
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY Directory.Build.props QandA.slnx global.json ./
 COPY src/QandA.Api/QandA.Api.csproj src/QandA.Api/
@@ -12,7 +14,7 @@ FROM build AS test
 ENTRYPOINT ["dotnet", "test", "--solution", "QandA.slnx", "--no-restore"]
 
 FROM build AS publish
-RUN dotnet publish src/QandA.Api/QandA.Api.csproj -c Release -o /app --no-restore
+RUN dotnet publish src/QandA.Api/QandA.Api.csproj -c Release -o /app --no-restore -p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
