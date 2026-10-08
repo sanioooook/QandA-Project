@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory, type RouteLocationNormalized, type RouteRecordRaw } from 'vue-router';
+import { createRouter, createWebHistory, type RouteLocationNormalized, type RouteRecordRaw, type RouterHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
 declare module 'vue-router' {
@@ -46,9 +46,9 @@ export async function authGuard(to: RouteLocationNormalized) {
   return true;
 }
 
-export function createAppRouter() {
+export function createAppRouter(history: RouterHistory = createWebHistory()) {
   const router = createRouter({
-    history: createWebHistory(),
+    history,
     routes,
     scrollBehavior: (_to, _from, saved) => saved ?? { top: 0 },
   });

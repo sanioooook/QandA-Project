@@ -155,7 +155,7 @@ async function remove() {
   <div v-else class="layout">
     <article class="main card">
       <header class="head">
-        <ShareDialog v-if="survey.status !== 'draft'" class="share" :url="shareUrl" :title="survey.title" />
+        <ShareDialog v-if="survey.status !== 'draft'" :url="shareUrl" :title="survey.title" />
         <div class="badges">
           <StatusBadge :status="status" />
           <span v-if="survey.deadline" class="deadline muted" :title="date(survey.deadline)">
