@@ -9,6 +9,7 @@ import CharCount from '@/components/CharCount.vue';
 import FormSkeleton from '@/components/skeletons/FormSkeleton.vue';
 import { useErrors } from '@/composables/useErrors';
 import { useFormat } from '@/composables/useFormat';
+import { useFormDraft } from '@/composables/useFormDraft';
 import { LIMITS } from '@/limits';
 import { useSurveysStore } from '@/stores/surveys';
 import { usePrefsStore } from '@/stores/prefs';
@@ -46,6 +47,21 @@ const saving = ref(false);
 const notFound = ref(false);
 const loaded = ref(!props.id);
 
+// What was typed survives an expired session or a reload of this tab.
+const draft = useFormDraft(() => `qanda.surveyForm.${props.id ?? 'new'}`, form);
+const initialForm = JSON.parse(JSON.stringify(form)) as typeof form;
+if (!props.id) draft.start();
+let serverSurvey: SurveyDetails | null = null;
+
+/** Throws away the restored input and goes back to the empty form (or the saved draft). */
+function startOver() {
+  draft.clear();
+  if (serverSurvey) fill(serverSurvey);
+  else Object.assign(form, JSON.parse(JSON.stringify(initialForm)));
+  errors.value = {};
+  formError.value = '';
+}
+
 const filledOptions = computed(() => form.options.map((o) => o.trim()).filter(Boolean));
 const maxVotesLimit = computed(() =>
   form.allowParticipantOptions ? LIMITS.maxVotesPerUserCap : Math.max(1, filledOptions.value.length));
@@ -76,7 +92,9 @@ watch(() => props.id, async (id) => {
       await router.replace({ name: 'survey', params: { id } });
       return;
     }
+    serverSurvey = survey;
     fill(survey);
+    draft.start();
     loaded.value = true;
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) notFound.value = true;
@@ -115,11 +133,22 @@ function validate(): Record<string, string> {
   return result;
 }
 
+/** After a failed save the problem may be off screen (the buttons are at the bottom): bring it into view. */
+async function revealProblem() {
+  await nextTick();
+  const target = document.querySelector<HTMLElement>('form [aria-invalid="true"]') ?? document.getElementById('form-error');
+  if (!target) return;
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  target.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
+  target.focus({ preventScroll: true });
+}
+
 async function save(publish: boolean) {
   formError.value = '';
   errors.value = validate();
   if (Object.keys(errors.value).length > 0) {
     formError.value = t('errors.validation');
+    await revealProblem();
     return;
   }
 
@@ -137,14 +166,21 @@ async function save(publish: boolean) {
   saving.value = true;
   try {
     const survey = props.id ? await store.update(props.id, input) : await store.create(input);
+    draft.clear();
     toasts.success(t(publish ? 'toast.published' : props.id ? 'toast.saved' : 'toast.created'));
     await router.push({ name: 'survey', params: { id: survey.id } });
   } catch (error) {
     errors.value = fieldErrors(error);
     formError.value = errorMessage(error);
+    await revealProblem();
   } finally {
     saving.value = false;
   }
+}
+
+function cancel() {
+  draft.clear();
+  router.back();
 }
 
 const minDate = computed(() => todayInput(zone.value));
@@ -158,7 +194,11 @@ const minDate = computed(() => todayInput(zone.value));
     </div>
 
     <form v-if="loaded" class="card form" novalidate @submit.prevent="save(true)">
-      <p v-if="formError" class="alert alert-error" role="alert">{{ formError }}</p>
+      <p v-if="formError" id="form-error" class="alert alert-error" role="alert" tabindex="-1">{{ formError }}</p>
+      <div v-if="draft.restored.value" class="alert alert-info restored">
+        <span>{{ t('form.restored') }}</span>
+        <button type="button" class="link-btn" @click="startOver">{{ t('form.startOver') }}</button>
+      </div>
 
       <div class="field">
         <div class="label-row">
@@ -314,7 +354,7 @@ const minDate = computed(() => todayInput(zone.value));
       <div class="footer">
         <p class="hint">{{ t('form.publishHint') }}</p>
         <div class="buttons">
-          <button type="button" class="btn btn-ghost" @click="router.back()">{{ t('form.cancel') }}</button>
+          <button type="button" class="btn btn-ghost" @click="cancel">{{ t('form.cancel') }}</button>
           <button type="button" class="btn" :disabled="saving" @click="save(false)">{{ id ? t('form.saveChanges') : t('form.saveDraft') }}</button>
           <button type="submit" class="btn btn-primary" :disabled="saving">
             <AppIcon name="send" :size="16" />{{ t('form.publish') }}
@@ -352,6 +392,27 @@ fieldset {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.restored {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
 }
 
 .label-row {

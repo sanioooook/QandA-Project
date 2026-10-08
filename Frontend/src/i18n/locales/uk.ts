@@ -139,6 +139,8 @@ export default {
     totalVotes: 'Усього',
   },
   form: {
+    restored: 'Відновлено те, що ви вводили раніше.',
+    startOver: 'Почати заново',
     deadlineZone: 'Час за поясом {zone}.',
     changeZone: 'Змінити',
     createTitle: 'Нове опитування',

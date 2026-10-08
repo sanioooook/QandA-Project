@@ -28,6 +28,7 @@ async function startApp(path: string) {
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   localStorage.setItem('qanda.locale', 'en');
   api = new FakeApi();
   api.install();
@@ -157,6 +158,32 @@ describe('app', () => {
     await router.push(`/surveys/${survey.id}`);
 
     expect(await screen.findByText('Oct 22, 2036, 11:59 PM GMT+3')).toBeTruthy();
+  });
+
+  it('nothing typed is lost when the session expires while publishing', async () => {
+    const alice = api.addUser('alice@example.com', 'Alice');
+    api.sessionUserId = alice.id;
+    api.expireSessionOn = 'POST /api/surveys';
+
+    await startApp('/surveys/new');
+    await user.type(await screen.findByLabelText('Question'), 'Survives a re-login?');
+    await user.type(screen.getByPlaceholderText('Option 1'), 'Yes');
+    await user.type(screen.getByPlaceholderText('Option 2'), 'No');
+    await user.click(screen.getByRole('button', { name: 'Publish' }));
+
+    await screen.findByRole('heading', { name: 'Welcome back' });
+    api.expireSessionOn = null;
+    await user.type(screen.getByLabelText('Email'), 'alice@example.com');
+    await user.type(screen.getByLabelText('Password'), 'Secret123');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(await screen.findByText('Restored what you typed before.')).toBeTruthy();
+    expect((screen.getByLabelText('Question') as HTMLInputElement).value).toBe('Survives a re-login?');
+    expect((screen.getByPlaceholderText('Option 2') as HTMLInputElement).value).toBe('No');
+
+    await user.click(screen.getByRole('button', { name: 'Publish' }));
+    await screen.findByRole('heading', { name: 'Survives a re-login?' });
+    expect(sessionStorage.getItem('qanda.surveyForm.new')).toBeNull();
   });
 
   it('an expired session while voting sends the user to sign in and back to the survey', async () => {

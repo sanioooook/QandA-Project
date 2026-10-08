@@ -137,6 +137,8 @@ export default {
     totalVotes: 'Total',
   },
   form: {
+    restored: 'Restored what you typed before.',
+    startOver: 'Start over',
     deadlineZone: 'Times are in {zone}.',
     changeZone: 'Change',
     createTitle: 'New survey',
