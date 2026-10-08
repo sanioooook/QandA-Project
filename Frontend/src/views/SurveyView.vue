@@ -45,6 +45,15 @@ async function load() {
 }
 watch(() => props.id, load, { immediate: true });
 
+// --- long texts ---------------------------------------------------------
+// Up to 200-character questions and 1000-character descriptions must not push the vote off screen.
+const LONG_TITLE = 90;
+const descriptionOpen = ref(false);
+const descriptionLong = computed(() => {
+  const text = survey.value?.description ?? '';
+  return text.length > 280 || text.split(/\r?\n/).length > 4;
+});
+
 // --- deadline -----------------------------------------------------------
 const now = useNow(1000);
 const status = computed(() => (survey.value ? effectiveStatus(survey.value.status, survey.value.deadline, now.value) : 'draft'));
@@ -163,8 +172,13 @@ async function remove() {
             {{ status === 'closed' ? t('survey.closedAt', { date: dateWithZone(survey.deadline) }) : dateWithZone(survey.deadline) }}
           </span>
         </div>
-        <h1 class="title">{{ survey.title }}</h1>
-        <p v-if="survey.description" class="description">{{ survey.description }}</p>
+        <h1 class="title" :class="{ long: survey.title.length > LONG_TITLE }">{{ survey.title }}</h1>
+        <div v-if="survey.description" class="description-block">
+          <p class="description" :class="{ clamped: descriptionLong && !descriptionOpen }">{{ survey.description }}</p>
+          <button v-if="descriptionLong" type="button" class="link-btn" :aria-expanded="descriptionOpen" @click="descriptionOpen = !descriptionOpen">
+            {{ descriptionOpen ? t('survey.showLess') : t('survey.showMore') }}
+          </button>
+        </div>
         <p class="meta muted">
           <UserAvatar :name="survey.author.name" :url="survey.author.avatarUrl" :size="22" />
           <span :title="dateTitle(survey.publishedAt ?? survey.createdAt)">
@@ -347,9 +361,41 @@ async function remove() {
   overflow-wrap: anywhere;
 }
 
+.title.long {
+  font-size: clamp(1.15rem, 1rem + 0.6vw, 1.4rem);
+}
+
+.description-block {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+}
+
 .description {
   white-space: pre-line;
   overflow-wrap: anywhere;
+}
+
+.description.clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
+
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
 }
 
 .meta,

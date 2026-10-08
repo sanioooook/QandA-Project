@@ -84,6 +84,8 @@ export default {
     refresh: 'Refresh',
   },
   survey: {
+    showMore: 'Show more',
+    showLess: 'Show less',
     signInToVote: 'Sign in to vote',
     confirmToVote: 'Confirm your email to vote: the link is in your inbox.',
     by: 'by {author}',

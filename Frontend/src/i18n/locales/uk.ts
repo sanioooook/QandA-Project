@@ -86,6 +86,8 @@ export default {
     refresh: 'Оновити',
   },
   survey: {
+    showMore: 'Показати повністю',
+    showLess: 'Згорнути',
     signInToVote: 'Увійдіть, щоб проголосувати',
     confirmToVote: 'Підтвердіть email, щоб проголосувати: посилання у вашій пошті.',
     by: 'автор: {author}',

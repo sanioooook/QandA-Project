@@ -97,6 +97,25 @@ describe('SurveyView voting', () => {
     expect(wrapper.text()).toContain('Update vote');
   });
 
+  it('a long description is folded until the reader asks for it', async () => {
+    mockFetch(json(200, survey({ description: 'Lorem ipsum dolor sit amet. '.repeat(30) })));
+    const { wrapper } = await mountView(SurveyView, { id: 's1' }, '/surveys/s1');
+
+    expect(wrapper.find('.description').classes()).toContain('clamped');
+    await wrapper.find('.link-btn').trigger('click');
+
+    expect(wrapper.find('.description').classes()).not.toContain('clamped');
+    expect(wrapper.find('.link-btn').text()).toBe('Show less');
+  });
+
+  it('a short description is shown whole, without a toggle', async () => {
+    mockFetch(json(200, survey({ description: 'Bring snacks.' })));
+    const { wrapper } = await mountView(SurveyView, { id: 's1' }, '/surveys/s1');
+
+    expect(wrapper.find('.description').classes()).not.toContain('clamped');
+    expect(wrapper.find('.link-btn').exists()).toBe(false);
+  });
+
   it('closed survey shows results without inputs to vote', async () => {
     mockFetch(json(200, survey({ status: 'closed', canVote: false, deadline: '2026-01-01T00:00:00Z' })));
     const { wrapper } = await mountView(SurveyView, { id: 's1' }, '/surveys/s1');

@@ -23,7 +23,7 @@ const status = computed(() => effectiveStatus(props.survey.status, props.survey.
       <StatusBadge :status="status" />
       <span v-if="survey.hasVoted" class="voted"><AppIcon name="check" :size="14" />{{ t('survey.youVoted') }}</span>
     </div>
-    <h2 class="title">{{ survey.title }}</h2>
+    <h2 class="title" :title="survey.title">{{ survey.title }}</h2>
     <p class="meta muted">
       <UserAvatar :name="survey.author.name" :url="survey.author.avatarUrl" :size="20" />
       <span :title="dateTitle(survey.publishedAt ?? survey.createdAt)">
@@ -78,6 +78,12 @@ const status = computed(() => effectiveStatus(props.survey.status, props.survey.
 .title {
   font-size: 1.08rem;
   overflow-wrap: anywhere;
+  /* Questions can be 200 characters long; the full text is in the tooltip and on the survey page. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
 }
 
 .meta {

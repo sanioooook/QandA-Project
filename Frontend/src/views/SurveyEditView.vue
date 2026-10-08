@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import { ApiError } from '@/api/http';
 import type { SurveyDetails, SurveyInput } from '@/api/types';
 import AppIcon from '@/components/AppIcon.vue';
+import CharCount from '@/components/CharCount.vue';
 import { useErrors } from '@/composables/useErrors';
 import { useFormat } from '@/composables/useFormat';
 import { LIMITS } from '@/limits';
@@ -159,7 +160,10 @@ const minDate = computed(() => todayInput(zone.value));
       <p v-if="formError" class="alert alert-error" role="alert">{{ formError }}</p>
 
       <div class="field">
-        <label for="title">{{ t('form.title') }}</label>
+        <div class="label-row">
+          <label for="title">{{ t('form.title') }}</label>
+          <CharCount :value="form.title" :max="LIMITS.titleMax" />
+        </div>
         <input
           id="title"
           v-model="form.title"
@@ -173,7 +177,10 @@ const minDate = computed(() => todayInput(zone.value));
       </div>
 
       <div class="field">
-        <label for="description">{{ t('form.description') }}</label>
+        <div class="label-row">
+          <label for="description">{{ t('form.description') }}</label>
+          <CharCount :value="form.description" :max="LIMITS.descriptionMax" />
+        </div>
         <textarea
           id="description"
           v-model="form.description"
@@ -189,15 +196,18 @@ const minDate = computed(() => todayInput(zone.value));
         <legend class="label">{{ t('form.options') }}</legend>
         <div v-for="(_, index) in form.options" :key="index" class="option-row">
           <span class="num muted">{{ index + 1 }}</span>
-          <input
-            :id="`option-${index}`"
-            v-model="form.options[index]"
-            class="input"
-            :placeholder="t('form.optionPlaceholder', { n: index + 1 })"
-            :maxlength="LIMITS.optionTextMax"
-            :aria-invalid="!!errors.options"
-            @keydown.enter.prevent="onOptionEnter(index)"
-          />
+          <div class="option-input">
+            <input
+              :id="`option-${index}`"
+              v-model="form.options[index]"
+              class="input"
+              :placeholder="t('form.optionPlaceholder', { n: index + 1 })"
+              :maxlength="LIMITS.optionTextMax"
+              :aria-invalid="!!errors.options"
+              @keydown.enter.prevent="onOptionEnter(index)"
+            />
+            <CharCount :value="form.options[index] ?? ''" :max="LIMITS.optionTextMax" class="inside" />
+          </div>
           <button
             type="button"
             class="icon-btn"
@@ -338,6 +348,37 @@ fieldset {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.label-row label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.option-input {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Room for the counter that appears inside the field near the limit. */
+.option-input .input {
+  padding-right: 72px;
+}
+
+.option-input .inside {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .num {
