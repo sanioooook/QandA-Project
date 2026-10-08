@@ -96,7 +96,11 @@ export class FakeApi {
       this.sessionUserId = user.id;
       return reply(200, this.account(user.id));
     }
-    if (method === 'PUT' && path === '/api/account/profile' && me) return reply(200, this.account(me.id));
+    if (method === 'PUT' && path === '/api/account/profile' && me) {
+      if (typeof body?.locale === 'string') me.locale = body.locale;
+      if (typeof body?.displayName === 'string') me.displayName = body.displayName;
+      return reply(200, this.account(me.id));
+    }
 
     if (method === 'GET' && path === '/api/surveys') {
       const scope = url.searchParams.get('scope') ?? 'active';

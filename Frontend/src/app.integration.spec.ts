@@ -115,6 +115,32 @@ describe('app', () => {
     expect(api.callsTo('GET /api/surveys/s')).toHaveLength(1);
   });
 
+  it('switching the language translates the page, is remembered and is saved to the account', async () => {
+    const alice = api.addUser('alice@example.com', 'Alice');
+    api.sessionUserId = alice.id;
+
+    await startApp('/surveys');
+    await screen.findByRole('heading', { name: 'Active surveys' });
+    await user.click(screen.getByRole('button', { name: 'Account menu' }));
+    await user.selectOptions(screen.getByRole('combobox'), 'uk');
+
+    await screen.findByRole('heading', { name: 'Активні опитування' });
+    expect(document.documentElement.lang).toBe('uk');
+    expect(localStorage.getItem('qanda.locale')).toBe('uk');
+    await waitFor(() => expect(api.users[0]!.locale).toBe('uk'));
+    expect(api.callsTo('PUT /api/account/profile')).toHaveLength(1);
+  });
+
+  it('a guest can switch the language too, without touching the server', async () => {
+    await startApp('/surveys');
+    await screen.findByRole('heading', { name: 'Active surveys' });
+
+    await user.selectOptions(screen.getByRole('combobox'), 'ru');
+
+    await screen.findByRole('heading', { name: 'Активные опросы' });
+    expect(api.callsTo('PUT')).toHaveLength(0);
+  });
+
   it('an expired session while voting sends the user to sign in and back to the survey', async () => {
     const alice = api.addUser('alice@example.com', 'Alice');
     const survey = api.addSurvey(alice, 'Expiring', ['Yes', 'No']);
