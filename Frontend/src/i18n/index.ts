@@ -24,13 +24,16 @@ export function isLocale(value: unknown): value is Locale {
   return typeof value === 'string' && (LOCALES as readonly string[]).includes(value);
 }
 
-/** First supported language from the browser preferences, Ukrainian otherwise. */
+/**
+ * First supported language from the browser preferences. A browser in some other language gets
+ * English; Ukrainian only when the browser reports no languages at all.
+ */
 export function detectLocale(languages: readonly string[] = navigator.languages ?? []): Locale {
   for (const language of languages) {
     const base = language.toLowerCase().split('-')[0];
     if (isLocale(base)) return base;
   }
-  return 'uk';
+  return languages.length > 0 ? 'en' : 'uk';
 }
 
 export const i18n = createI18n({

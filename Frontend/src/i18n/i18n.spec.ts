@@ -38,7 +38,8 @@ describe('i18n', () => {
     [['ru-RU', 'en'], 'ru'],
     [['de-DE', 'en-US'], 'en'],
     [['uk'], 'uk'],
-    [['de', 'fr'], 'uk'],
+    [['de', 'fr'], 'en'],
+    [['pl-PL'], 'en'],
     [[], 'uk'],
   ])('detects %j as %s', (languages, expected) => {
     expect(detectLocale(languages)).toBe(expected);
