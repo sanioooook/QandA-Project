@@ -26,6 +26,15 @@ describe('router guard', () => {
     expect(router.currentRoute.value.name).toBe('active');
   });
 
+  it('does not hold public pages until the session is known', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+    const router = makeRouter();
+
+    await router.push('/surveys');
+
+    expect(router.currentRoute.value.name).toBe('active');
+  });
+
   it.each(['/my', '/voted', '/surveys/new', '/surveys/abc/edit'])('sends guests from %s to login and keeps the target', async (path) => {
     guest();
     const router = makeRouter();

@@ -36,7 +36,11 @@ export function safeRedirect(value: unknown): string | null {
 
 export async function authGuard(to: RouteLocationNormalized) {
   const auth = useAuthStore();
-  await auth.init();
+  const session = auth.init();
+  // Public pages do not depend on who is signed in to load (the cookie goes with every request),
+  // so they open at once and show their skeletons instead of a blank page on a slow first load.
+  if (!to.meta.requiresAuth && !to.meta.guestOnly) return true;
+  await session;
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
     return { name: 'login', query: { redirect: to.fullPath } };
   }
