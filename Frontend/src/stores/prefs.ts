@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref, watch } from 'vue';
 import { detectLocale, i18n, isLocale, type Locale } from '@/i18n';
-import { browserTimeZone, isTimeZone } from '@/utils/timeZone';
+import { browserTimeZone, currentName, isTimeZone } from '@/utils/timeZone';
 
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -36,7 +36,7 @@ export const usePrefsStore = defineStore('prefs', () => {
   const theme = ref<Theme>(storedTheme === 'light' || storedTheme === 'dark' ? storedTheme : 'system');
   const locale = ref<Locale>(isLocale(storedLocale) ? storedLocale : detectLocale());
   const storedZone = read(TIME_ZONE_KEY);
-  const timeZone = ref<TimeZonePref>(isTimeZone(storedZone) ? storedZone : 'auto');
+  const timeZone = ref<TimeZonePref>(isTimeZone(storedZone) ? currentName(storedZone) : 'auto');
   /** The zone all dates are shown in and deadline times are entered in. */
   const effectiveTimeZone = computed(() => (timeZone.value === 'auto' ? browserTimeZone() : timeZone.value));
 

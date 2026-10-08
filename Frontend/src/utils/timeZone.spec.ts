@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { formatDate } from '@/composables/useFormat';
-import { allTimeZones, isTimeZone, zonedToInstant, zoneName, zoneOffsetLabel, zoneOffsetMs } from './timeZone';
+import { allTimeZones, browserTimeZone, currentName, isTimeZone, zonedToInstant, zoneName, zoneOffsetLabel, zoneOffsetMs } from './timeZone';
 
 const HOUR = 3_600_000;
 
@@ -35,6 +35,26 @@ describe('time zones', () => {
     expect(formatDate(deadline, 'en', 'Europe/Kyiv', true)).toBe('Oct 22, 2026, 11:59 PM GMT+3');
     expect(formatDate(deadline, 'en', 'America/New_York', true)).toBe('Oct 22, 2026, 4:59 PM GMT-4');
     expect(formatDate(deadline, 'uk', 'Europe/Kyiv')).toContain('23:59');
+  });
+
+  describe('a browser that reports an old zone name', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('is shown under the current name, and listed once', () => {
+      const original = Intl.DateTimeFormat.prototype.resolvedOptions;
+      vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockImplementation(function (this: Intl.DateTimeFormat) {
+        return { ...original.call(this), timeZone: 'Europe/Kiev' };
+      });
+
+      expect(browserTimeZone()).toBe('Europe/Kyiv');
+      expect(allTimeZones().filter((z) => z === 'Europe/Kiev' || z === 'Europe/Kyiv')).toEqual(['Europe/Kyiv']);
+    });
+  });
+
+  it('maps renamed zones to their current names', () => {
+    expect(currentName('Europe/Kiev')).toBe('Europe/Kyiv');
+    expect(currentName('Asia/Calcutta')).toBe('Asia/Kolkata');
+    expect(currentName('Europe/Paris')).toBe('Europe/Paris');
   });
 
   it('validates zone names and lists them', () => {

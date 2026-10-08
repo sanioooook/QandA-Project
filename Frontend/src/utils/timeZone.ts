@@ -9,8 +9,9 @@ export interface WallTime {
   second: number;
 }
 
+/** The device's zone under its current name (browsers may still report e.g. Europe/Kiev). */
 export function browserTimeZone(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  return currentName(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
 }
 
 export function isTimeZone(value: unknown): value is string {
@@ -38,10 +39,15 @@ const RENAMED: Record<string, string> = {
   'Pacific/Truk': 'Pacific/Chuuk',
 };
 
+/** The current name of a renamed zone, when this environment understands it. */
+export function currentName(zone: string): string {
+  const renamed = RENAMED[zone];
+  return renamed && isTimeZone(renamed) ? renamed : zone;
+}
+
 export function allTimeZones(): string[] {
   const zones = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [];
-  const current = zones.map((zone) => (RENAMED[zone] && isTimeZone(RENAMED[zone]) ? RENAMED[zone] : zone));
-  return [...new Set([...current, browserTimeZone(), 'UTC'])].sort();
+  return [...new Set([...zones.map(currentName), browserTimeZone(), 'UTC'])].sort();
 }
 
 /** Calendar date and clock time of `instant` as seen in `timeZone`. */
