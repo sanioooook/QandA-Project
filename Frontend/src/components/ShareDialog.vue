@@ -76,7 +76,7 @@ defineExpose({ open });
       </header>
       <p class="muted hint">{{ t('survey.shareHint') }}</p>
       <div class="link-box">
-        <code ref="link" class="url" :title="url" @click="selectLink">{{ url }}</code>
+        <code ref="link" class="url" @click="selectLink">{{ url }}</code>
         <button
           type="button"
           class="icon-btn copy"
@@ -135,11 +135,14 @@ defineExpose({ open });
 .url {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Scrolls instead of truncating, so the whole link can be read and selected by hand. */
+  overflow-x: auto;
   white-space: nowrap;
+  padding: 4px 0;
   font: 0.9rem/1.6 ui-monospace, 'Cascadia Code', Consolas, monospace;
   color: var(--text);
+  scrollbar-width: thin;
+  user-select: all;
 }
 
 .copy.done {
