@@ -6,8 +6,10 @@ import { ApiError } from '@/api/http';
 import type { SurveyDetails, SurveyInput } from '@/api/types';
 import AppIcon from '@/components/AppIcon.vue';
 import { useErrors } from '@/composables/useErrors';
+import { useFormat } from '@/composables/useFormat';
 import { LIMITS } from '@/limits';
 import { useSurveysStore } from '@/stores/surveys';
+import { composeDeadline, splitDeadline, todayInput } from '@/utils/deadline';
 import { useToastsStore } from '@/stores/toasts';
 import NotFoundView from './NotFoundView.vue';
 
@@ -19,12 +21,14 @@ const router = useRouter();
 const store = useSurveysStore();
 const toasts = useToastsStore();
 const { codeMessage, errorMessage, fieldErrors } = useErrors();
+const { date: formatDate } = useFormat();
 
 const form = reactive({
   title: '',
   description: '',
   options: ['', ''],
-  deadline: '',
+  deadlineDate: '',
+  deadlineTime: '',
   maxVotesPerUser: 1,
   allowParticipantOptions: false,
   maxOptionsPerParticipant: 1,
@@ -39,18 +43,18 @@ const filledOptions = computed(() => form.options.map((o) => o.trim()).filter(Bo
 const maxVotesLimit = computed(() =>
   form.allowParticipantOptions ? LIMITS.maxVotesPerUserCap : Math.max(1, filledOptions.value.length));
 
-/** ISO (UTC) -> value for <input type="datetime-local"> in the user's time zone. */
-function toLocalInput(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const deadline = computed(() => composeDeadline(form.deadlineDate, form.deadlineTime));
+
+function clearDeadline() {
+  form.deadlineDate = '';
+  form.deadlineTime = '';
 }
 
 function fill(survey: SurveyDetails) {
   form.title = survey.title;
   form.description = survey.description ?? '';
   form.options = survey.options.map((o) => o.text);
-  form.deadline = survey.deadline ? toLocalInput(survey.deadline) : '';
+  ({ date: form.deadlineDate, time: form.deadlineTime } = splitDeadline(survey.deadline));
   form.maxVotesPerUser = survey.maxVotesPerUser;
   form.allowParticipantOptions = survey.allowParticipantOptions;
   form.maxOptionsPerParticipant = survey.maxOptionsPerParticipant;
@@ -100,7 +104,7 @@ function validate(): Record<string, string> {
   if (form.allowParticipantOptions && (form.maxOptionsPerParticipant < 1 || form.maxOptionsPerParticipant > LIMITS.maxOptionsPerParticipantCap)) {
     result.maxOptionsPerParticipant = codeMessage('max_options_range');
   }
-  if (form.deadline && new Date(form.deadline).getTime() <= Date.now()) result.deadline = codeMessage('deadline_past');
+  if (deadline.value && deadline.value.getTime() <= Date.now()) result.deadline = codeMessage('deadline_past');
   return result;
 }
 
@@ -116,7 +120,7 @@ async function save(publish: boolean) {
     title: form.title.trim(),
     description: form.description.trim() || null,
     options: filledOptions.value,
-    deadline: form.deadline ? new Date(form.deadline).toISOString() : null,
+    deadline: deadline.value?.toISOString() ?? null,
     maxVotesPerUser: form.maxVotesPerUser,
     allowParticipantOptions: form.allowParticipantOptions,
     maxOptionsPerParticipant: form.maxOptionsPerParticipant,
@@ -136,7 +140,7 @@ async function save(publish: boolean) {
   }
 }
 
-const minDeadline = toLocalInput(new Date().toISOString());
+const minDate = todayInput();
 </script>
 
 <template>
@@ -227,10 +231,36 @@ const minDeadline = toLocalInput(new Date().toISOString());
           <div class="field">
             <label for="deadline">{{ t('form.deadline') }}</label>
             <div class="deadline-row">
-              <input id="deadline" v-model="form.deadline" class="input" type="datetime-local" :min="minDeadline" :aria-invalid="!!errors.deadline" />
-              <button v-if="form.deadline" type="button" class="btn btn-sm btn-ghost" @click="form.deadline = ''">{{ t('form.clearDeadline') }}</button>
+              <input
+                id="deadline"
+                v-model="form.deadlineDate"
+                class="input"
+                type="date"
+                :min="minDate"
+                :aria-invalid="!!errors.deadline"
+              />
+              <input
+                v-model="form.deadlineTime"
+                class="input time"
+                type="time"
+                step="60"
+                :disabled="!form.deadlineDate"
+                :aria-label="t('form.deadlineTime')"
+                :title="t('form.deadlineTime')"
+              />
+              <button
+                v-if="form.deadlineDate || form.deadlineTime"
+                type="button"
+                class="icon-btn"
+                :aria-label="t('form.clearDeadline')"
+                :title="t('form.clearDeadline')"
+                @click="clearDeadline"
+              >
+                <AppIcon name="x" :size="16" />
+              </button>
             </div>
             <p v-if="errors.deadline" class="error-text">{{ errors.deadline }}</p>
+            <p v-else-if="deadline" class="hint">{{ t('form.deadlineSummary', { date: formatDate(deadline.toISOString()) }) }}</p>
             <p v-else class="hint">{{ t('form.deadlineHint') }}</p>
           </div>
         </div>
@@ -328,7 +358,16 @@ fieldset {
 
 .deadline-row {
   display: flex;
+  align-items: center;
   gap: 6px;
+}
+
+.deadline-row .input {
+  min-width: 0;
+}
+
+.deadline-row .time {
+  flex: 0 0 120px;
 }
 
 .narrow {

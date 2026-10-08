@@ -1,19 +1,25 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { SurveySummary } from '@/api/types';
 import AppIcon from '@/components/AppIcon.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { useFormat } from '@/composables/useFormat';
+import { useNow } from '@/composables/useNow';
+import { effectiveStatus } from '@/utils/deadline';
 
-defineProps<{ survey: SurveySummary }>();
+const props = defineProps<{ survey: SurveySummary }>();
 const { t } = useI18n();
 const { date, relative } = useFormat();
+// Refresh "closes in 5 minutes" and flip to closed when the deadline passes while the list is open.
+const now = useNow(30_000);
+const status = computed(() => effectiveStatus(props.survey.status, props.survey.deadline, now.value));
 </script>
 
 <template>
   <RouterLink :to="{ name: 'survey', params: { id: survey.id } }" class="survey-card card">
     <div class="top">
-      <StatusBadge :status="survey.status" />
+      <StatusBadge :status="status" />
       <span v-if="survey.hasVoted" class="voted"><AppIcon name="check" :size="14" />{{ t('survey.youVoted') }}</span>
     </div>
     <h2 class="title">{{ survey.title }}</h2>
@@ -26,7 +32,7 @@ const { date, relative } = useFormat();
       <span>{{ t('survey.options', survey.optionCount) }}</span>
       <span v-if="survey.deadline" :title="date(survey.deadline)">
         <AppIcon name="clock" :size="15" />
-        {{ survey.status === 'closed' ? t('survey.closedAt', { date: date(survey.deadline) }) : t('survey.closesIn', { relative: relative(survey.deadline) }) }}
+        {{ status === 'closed' ? t('survey.closedAt', { date: date(survey.deadline) }) : t('survey.closesIn', { relative: relative(survey.deadline) }) }}
       </span>
     </div>
   </RouterLink>

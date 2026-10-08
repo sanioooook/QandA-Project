@@ -8,9 +8,11 @@ import AppIcon from '@/components/AppIcon.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { useErrors } from '@/composables/useErrors';
 import { useFormat } from '@/composables/useFormat';
+import { useNow } from '@/composables/useNow';
 import { LIMITS } from '@/limits';
 import { useSurveysStore } from '@/stores/surveys';
 import { useToastsStore } from '@/stores/toasts';
+import { clock, effectiveStatus, remaining } from '@/utils/deadline';
 import NotFoundView from './NotFoundView.vue';
 
 const props = defineProps<{ id: string }>();
@@ -20,7 +22,7 @@ const router = useRouter();
 const store = useSurveysStore();
 const toasts = useToastsStore();
 const { errorMessage, fieldErrors } = useErrors();
-const { date, relative } = useFormat();
+const { date } = useFormat();
 
 const survey = computed(() => store.getSurvey(props.id));
 const notFound = ref(false);
@@ -39,6 +41,23 @@ async function load() {
 }
 watch(() => props.id, load, { immediate: true });
 
+// --- deadline -----------------------------------------------------------
+const now = useNow(1000);
+const status = computed(() => (survey.value ? effectiveStatus(survey.value.status, survey.value.deadline, now.value) : 'draft'));
+const canVote = computed(() => !!survey.value?.canVote && status.value === 'active');
+const canAddOption = computed(() => !!survey.value?.canAddOption && status.value === 'active');
+const left = computed(() => (survey.value?.deadline && status.value === 'active' ? remaining(survey.value.deadline, now.value) : null));
+const countdown = computed(() =>
+  left.value ? [left.value.days > 0 ? t('survey.days', left.value.days) : '', clock(left.value)].filter(Boolean).join(' ') : '');
+
+// The deadline passed while the page is open: voting is locked at once, then the server's view is loaded.
+watch(status, (next, previous) => {
+  if (previous === 'active' && next === 'closed') {
+    store.invalidateLists(['active']);
+    void store.fetchSurvey(props.id, { force: true }).catch(() => {});
+  }
+});
+
 // --- voting -------------------------------------------------------------
 const selection = ref<number[]>([]);
 watch(() => survey.value?.myVotes, (votes) => { selection.value = [...(votes ?? [])]; }, { immediate: true });
@@ -53,7 +72,7 @@ const dirty = computed(() => {
 });
 
 function toggle(option: SurveyOption) {
-  if (!survey.value?.canVote) return;
+  if (!canVote.value) return;
   if (single.value) {
     selection.value = [option.id];
     return;
@@ -141,10 +160,10 @@ async function remove() {
     <article class="main card">
       <header class="head">
         <div class="badges">
-          <StatusBadge :status="survey.status" />
+          <StatusBadge :status="status" />
           <span v-if="survey.deadline" class="deadline muted" :title="date(survey.deadline)">
             <AppIcon name="clock" :size="15" />
-            {{ survey.status === 'closed' ? t('survey.closedAt', { date: date(survey.deadline) }) : t('survey.closesIn', { relative: relative(survey.deadline) }) }}
+            {{ status === 'closed' ? t('survey.closedAt', { date: date(survey.deadline) }) : date(survey.deadline) }}
           </span>
         </div>
         <h1 class="title">{{ survey.title }}</h1>
@@ -155,11 +174,16 @@ async function remove() {
         </p>
       </header>
 
-      <p v-if="survey.status === 'draft'" class="alert alert-warning">{{ t('survey.draftNotice') }}</p>
-      <p v-else-if="survey.status === 'closed'" class="alert alert-info">{{ t('survey.closedNotice') }}</p>
+      <div v-if="left" class="countdown" :class="{ soon: left.totalMs < 3_600_000 }" role="timer" aria-live="off">
+        <span class="countdown-label">{{ t('survey.timeLeft') }}</span>
+        <span class="countdown-value">{{ countdown }}</span>
+      </div>
+
+      <p v-if="status === 'draft'" class="alert alert-warning">{{ t('survey.draftNotice') }}</p>
+      <p v-else-if="status === 'closed'" class="alert alert-info">{{ t('survey.closedNotice') }}</p>
 
       <div class="vote">
-        <div v-if="survey.canVote" class="vote-head">
+        <div v-if="canVote" class="vote-head">
           <span class="label">{{ single ? t('survey.chooseOne') : t('survey.chooseUpTo', { n: survey.maxVotesPerUser }) }}</span>
           <span v-if="!single" class="muted small">{{ t('survey.selected', { n: selection.length, max: survey.maxVotesPerUser }) }}</span>
         </div>
@@ -171,7 +195,7 @@ async function remove() {
               :class="{
                 selected: selection.includes(option.id),
                 mine: survey.myVotes.includes(option.id),
-                disabled: !survey.canVote || (!selection.includes(option.id) && atLimit && !single),
+                disabled: !canVote || (!selection.includes(option.id) && atLimit && !single),
               }"
             >
               <span class="bar" :style="{ width: `${percent(option)}%` }" aria-hidden="true" />
@@ -179,7 +203,7 @@ async function remove() {
                 :type="single ? 'radio' : 'checkbox'"
                 :name="`survey-${survey.id}`"
                 :checked="selection.includes(option.id)"
-                :disabled="!survey.canVote || busy || (!selection.includes(option.id) && atLimit && !single)"
+                :disabled="!canVote || busy || (!selection.includes(option.id) && atLimit && !single)"
                 @change="toggle(option)"
               />
               <span class="text">
@@ -210,7 +234,7 @@ async function remove() {
           <span v-if="survey.isAuthor && survey.status !== 'draft'">{{ t('survey.authorOnly') }}</span>
         </div>
 
-        <div v-if="survey.canVote" class="vote-actions">
+        <div v-if="canVote" class="vote-actions">
           <button type="button" class="btn btn-primary" :disabled="busy || !dirty || selection.length === 0" @click="submitVote">
             <AppIcon name="check" :size="16" />
             {{ hasVoted ? t('survey.updateVote') : t('survey.submitVote') }}
@@ -219,7 +243,7 @@ async function remove() {
         </div>
       </div>
 
-      <form v-if="survey.canAddOption" class="add-option" @submit.prevent="addOption">
+      <form v-if="canAddOption" class="add-option" @submit.prevent="addOption">
         <label class="label" for="new-option">{{ t('survey.addOption') }}</label>
         <div class="add-row">
           <input
@@ -317,6 +341,32 @@ async function remove() {
 .meta,
 .small {
   font-size: 0.86rem;
+}
+
+.countdown {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+}
+
+.countdown.soon {
+  background: var(--warning-soft);
+}
+
+.countdown-label {
+  font-weight: 600;
+}
+
+.countdown-value {
+  font-size: 1.35rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
 }
 
 .vote {
