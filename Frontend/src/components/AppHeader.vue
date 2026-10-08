@@ -3,7 +3,6 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import AppIcon from '@/components/AppIcon.vue';
 import PrefsControls from '@/components/PrefsControls.vue';
 import UserMenu from '@/components/UserMenu.vue';
 import { useAuthStore } from '@/stores/auth';
@@ -32,13 +31,7 @@ const { isLoggedIn } = storeToRefs(useAuthStore());
       </nav>
 
       <div class="actions">
-        <template v-if="isLoggedIn">
-          <RouterLink :to="{ name: 'create' }" class="btn btn-primary btn-sm new" :aria-label="t('nav.newSurvey')">
-            <AppIcon name="plus" :size="16" />
-            <span>{{ t('nav.newSurvey') }}</span>
-          </RouterLink>
-          <UserMenu />
-        </template>
+        <UserMenu v-if="isLoggedIn" />
         <template v-else>
           <PrefsControls />
           <RouterLink :to="{ name: 'login', query: loginQuery }" class="btn btn-sm btn-ghost">{{ t('nav.login') }}</RouterLink>
@@ -115,14 +108,6 @@ const { isLoggedIn } = storeToRefs(useAuthStore());
   margin-left: auto;
 }
 
-
-
-
-@media (max-width: 960px) {
-  .new span {
-    display: none;
-  }
-}
 
 @media (max-width: 900px) {
   .nav {
