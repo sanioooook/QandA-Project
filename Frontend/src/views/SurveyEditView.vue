@@ -219,18 +219,40 @@ const minDate = computed(() => todayInput(zone.value));
         <legend class="label">{{ t('form.settings') }}</legend>
 
         <div class="grid">
-          <div class="field">
-            <label for="max-votes">{{ t('form.maxVotes') }}</label>
-            <input
-              id="max-votes"
-              v-model.number="form.maxVotesPerUser"
-              class="input count"
-              type="number"
-              min="1"
-              :max="maxVotesLimit"
-              :aria-invalid="!!errors.maxVotesPerUser"
-            />
-            <p v-if="errors.maxVotesPerUser" class="error-text">{{ errors.maxVotesPerUser }}</p>
+          <!-- Left: who may do what. Right: until when. -->
+          <div class="column">
+            <div class="field">
+              <label for="max-votes">{{ t('form.maxVotes') }}</label>
+              <input
+                id="max-votes"
+                v-model.number="form.maxVotesPerUser"
+                class="input count"
+                type="number"
+                min="1"
+                :max="maxVotesLimit"
+                :aria-invalid="!!errors.maxVotesPerUser"
+              />
+              <p v-if="errors.maxVotesPerUser" class="error-text">{{ errors.maxVotesPerUser }}</p>
+            </div>
+
+            <label class="check">
+              <input v-model="form.allowParticipantOptions" type="checkbox" />
+              <span>{{ t('form.allowOptions') }}</span>
+            </label>
+
+            <div v-if="form.allowParticipantOptions" class="field nested">
+              <label for="max-options">{{ t('form.maxOptions') }}</label>
+              <input
+                id="max-options"
+                v-model.number="form.maxOptionsPerParticipant"
+                class="input count"
+                type="number"
+                min="1"
+                :max="LIMITS.maxOptionsPerParticipantCap"
+                :aria-invalid="!!errors.maxOptionsPerParticipant"
+              />
+              <p v-if="errors.maxOptionsPerParticipant" class="error-text">{{ errors.maxOptionsPerParticipant }}</p>
+            </div>
           </div>
 
           <div class="field">
@@ -272,25 +294,6 @@ const minDate = computed(() => todayInput(zone.value));
               <RouterLink :to="{ name: 'account' }">{{ t('form.changeZone') }}</RouterLink>
             </p>
           </div>
-        </div>
-
-        <label class="check">
-          <input v-model="form.allowParticipantOptions" type="checkbox" />
-          <span>{{ t('form.allowOptions') }}</span>
-        </label>
-
-        <div v-if="form.allowParticipantOptions" class="field">
-          <label for="max-options">{{ t('form.maxOptions') }}</label>
-          <input
-            id="max-options"
-            v-model.number="form.maxOptionsPerParticipant"
-            class="input count"
-            type="number"
-            min="1"
-            :max="LIMITS.maxOptionsPerParticipantCap"
-            :aria-invalid="!!errors.maxOptionsPerParticipant"
-          />
-          <p v-if="errors.maxOptionsPerParticipant" class="error-text">{{ errors.maxOptionsPerParticipant }}</p>
         </div>
       </fieldset>
 
@@ -357,6 +360,17 @@ fieldset {
   float: left;
   width: 100%;
   margin-bottom: 4px;
+}
+
+.column {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+/* Belongs to the checkbox above it. */
+.nested {
+  padding-left: 28px;
 }
 
 .grid {
