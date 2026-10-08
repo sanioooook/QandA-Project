@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<SurveyOption> Options => Set<SurveyOption>();
     public DbSet<Vote> Votes => Set<Vote>();
     public DbSet<UserToken> UserTokens => Set<UserToken>();
+    public DbSet<UserAvatar> UserAvatars => Set<UserAvatar>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -21,6 +22,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(u => u.DisplayName).HasMaxLength(Limits.DisplayNameMax);
             e.Property(u => u.SecurityStamp).HasMaxLength(32);
             e.Property(u => u.Locale).HasMaxLength(5);
+        });
+
+        b.Entity<UserAvatar>(e =>
+        {
+            e.HasKey(a => a.UserId);
+            e.Property(a => a.ContentType).HasMaxLength(32);
+            e.HasOne(a => a.User).WithOne().HasForeignKey<UserAvatar>(a => a.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<UserToken>(e =>

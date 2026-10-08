@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using QandA.Api.Account;
 using QandA.Api.Auth;
 using QandA.Api.Common;
 using QandA.Api.Data;
@@ -26,6 +27,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<ParticipationPolicy>();
 builder.Services.AddScoped<SurveyService>();
+builder.Services.AddScoped<AccountService>();
 
 builder.Services.Configure<AppOptions>(config.GetSection(AppOptions.Section));
 builder.Services.Configure<EmailOptions>(config.GetSection(EmailOptions.Section));

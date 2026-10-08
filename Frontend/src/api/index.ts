@@ -17,6 +17,16 @@ export const authApi = {
     http.post<Account>('/api/auth/change-password', { currentPassword, newPassword }),
 };
 
+export const accountApi = {
+  updateProfile: (changes: { displayName?: string; locale?: string }) => http.put<Account>('/api/account/profile', changes),
+  uploadAvatar: (image: Blob) => {
+    const form = new FormData();
+    form.append('file', image, 'avatar');
+    return http.put<Account>('/api/account/avatar', form);
+  },
+  removeAvatar: () => http.delete<Account>('/api/account/avatar'),
+};
+
 export interface ListQuery {
   scope: SurveyScope;
   status?: SurveyStatus | null;

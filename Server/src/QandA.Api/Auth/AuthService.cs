@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using QandA.Api.Account;
 using QandA.Api.Common;
 using QandA.Api.Data;
 using QandA.Api.Domain;
@@ -17,10 +18,10 @@ public record ResetPasswordRequest(string? Token, string? Password);
 public record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
 
 /// <summary>The signed-in user's own account. The email never appears in public DTOs.</summary>
-public record AccountDto(int Id, string Email, string DisplayName, bool EmailConfirmed);
+public record AccountDto(int Id, string Email, string DisplayName, bool EmailConfirmed, string Locale, string? AvatarUrl);
 
 /// <summary>How other users see someone (survey author, voter).</summary>
-public record PublicUserDto(int Id, string Name);
+public record PublicUserDto(int Id, string Name, string? AvatarUrl);
 
 public record AuthConfigDto(bool EmailEnabled, bool ConfirmationRequired);
 
@@ -108,8 +109,10 @@ public class AuthService(
 
     public async Task<AccountDto?> FindAsync(int id, CancellationToken ct) =>
         await db.Users.Where(u => u.Id == id)
-            .Select(u => new AccountDto(u.Id, u.Email, u.DisplayName, u.EmailConfirmedAt != null))
-            .SingleOrDefaultAsync(ct);
+            .Select(u => new { u.Id, u.Email, u.DisplayName, Confirmed = u.EmailConfirmedAt != null, u.Locale, u.AvatarUpdatedAt })
+            .SingleOrDefaultAsync(ct) is { } u
+            ? new AccountDto(u.Id, u.Email, u.DisplayName, u.Confirmed, u.Locale, Avatars.Url(u.Id, u.AvatarUpdatedAt))
+            : null;
 
     /// <summary>Current security stamp of a user, or null when the user no longer exists.</summary>
     public Task<string?> StampAsync(int id, CancellationToken ct) =>
@@ -198,7 +201,8 @@ public class AuthService(
     }
 
     private static SignIn ToSignIn(User user) =>
-        new(new AccountDto(user.Id, user.Email, user.DisplayName, user.EmailConfirmedAt is not null), user.SecurityStamp);
+        new(new AccountDto(user.Id, user.Email, user.DisplayName, user.EmailConfirmedAt is not null, user.Locale,
+            Avatars.Url(user.Id, user.AvatarUpdatedAt)), user.SecurityStamp);
 
     private static AppException EmailTaken() =>
         AppException.Conflict("email_taken", "An account with this email already exists.", "email");

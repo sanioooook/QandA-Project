@@ -6,12 +6,16 @@ export interface Account {
   email: string;
   displayName: string;
   emailConfirmed: boolean;
+  /** Language of the emails; kept in sync with the UI language. */
+  locale: string;
+  avatarUrl: string | null;
 }
 
 /** How other users are shown (survey author, voter); never contains the email. */
 export interface PublicUser {
   id: number;
   name: string;
+  avatarUrl: string | null;
 }
 
 export interface AuthConfig {
@@ -45,6 +49,7 @@ export interface SurveySummary {
 export interface Voter {
   userId: number;
   name: string;
+  avatarUrl: string | null;
   votedAt: string;
 }
 

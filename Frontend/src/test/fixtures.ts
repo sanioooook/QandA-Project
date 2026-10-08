@@ -6,7 +6,7 @@ export function survey(overrides: Partial<SurveyDetails> = {}): SurveyDetails {
     id: 's1',
     title: 'Where do we go?',
     description: null,
-    author: { id: 1, name: 'Alice' },
+    author: { id: 1, name: 'Alice', avatarUrl: null },
     createdAt: '2026-10-01T10:00:00Z',
     publishedAt: '2026-10-01T10:00:00Z',
     deadline: null,
@@ -34,7 +34,7 @@ export function summary(overrides: Partial<SurveySummary> = {}): SurveySummary {
   return {
     id: 's1',
     title: 'Where do we go?',
-    author: { id: 1, name: 'Alice' },
+    author: { id: 1, name: 'Alice', avatarUrl: null },
     createdAt: '2026-10-01T10:00:00Z',
     publishedAt: '2026-10-01T10:00:00Z',
     deadline: null,
@@ -69,7 +69,7 @@ export function mockFetch(...responses: Response[]) {
 }
 
 export function account(overrides: Partial<Account> = {}): Account {
-  return { id: 1, email: 'alice@example.com', displayName: 'Alice', emailConfirmed: true, ...overrides };
+  return { id: 1, email: 'alice@example.com', displayName: 'Alice', emailConfirmed: true, locale: 'en', avatarUrl: null, ...overrides };
 }
 
 export interface Reply {

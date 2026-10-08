@@ -15,9 +15,20 @@ public class User
     public DateTimeOffset? EmailConfirmedAt { get; set; }
     /// <summary>Language of the emails sent to the user (uk, en, ru).</summary>
     public string Locale { get; set; } = "uk";
+    /// <summary>When the avatar was last set; null without one. Versions the avatar URL for caching.</summary>
+    public DateTimeOffset? AvatarUpdatedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 
     public static string NewStamp() => Guid.NewGuid().ToString("N");
+}
+
+/// <summary>Avatar image, kept apart from <see cref="User"/> so user queries never load the bytes.</summary>
+public class UserAvatar
+{
+    public int UserId { get; set; }
+    public User User { get; set; } = null!;
+    public required string ContentType { get; set; }
+    public required byte[] Data { get; set; }
 }
 
 public enum TokenPurpose { EmailConfirmation, PasswordReset }

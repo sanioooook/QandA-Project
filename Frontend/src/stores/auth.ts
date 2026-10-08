@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { authApi } from '@/api';
+import { accountApi, authApi } from '@/api';
 import type { Account, AuthConfig, Credentials, Registration } from '@/api/types';
 import { useSurveysStore } from './surveys';
 
@@ -76,6 +76,20 @@ export const useAuthStore = defineStore('auth', () => {
     return me;
   }
 
+  /** Cached surveys show the old name or avatar, so they are dropped after a profile change. */
+  function setProfile(next: Account): Account {
+    useSurveysStore().reset();
+    setUser(next);
+    return next;
+  }
+
+  const updateProfile = async (changes: { displayName?: string; locale?: string }) =>
+    changes.displayName === undefined
+      ? (user.value = await accountApi.updateProfile(changes))
+      : setProfile(await accountApi.updateProfile(changes));
+  const uploadAvatar = async (image: Blob) => setProfile(await accountApi.uploadAvatar(image));
+  const removeAvatar = async () => setProfile(await accountApi.removeAvatar());
+
   /** The server rejected our cookie (expired, password changed elsewhere, user gone). */
   function sessionExpired(): void {
     setUser(null);
@@ -95,6 +109,9 @@ export const useAuthStore = defineStore('auth', () => {
     confirmEmail,
     resetPassword,
     changePassword,
+    updateProfile,
+    uploadAvatar,
+    removeAvatar,
     resendConfirmation: authApi.resendConfirmation,
     forgotPassword: authApi.forgotPassword,
     sessionExpired,

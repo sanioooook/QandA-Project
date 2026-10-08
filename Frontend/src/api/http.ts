@@ -44,11 +44,13 @@ async function toApiError(response: Response): Promise<ApiError> {
 export async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
   let response: Response;
   try {
+    // FormData (file uploads) sets its own multipart Content-Type with the boundary.
+    const isForm = body instanceof FormData;
     response = await fetch(url, {
       method,
       credentials: 'same-origin',
-      headers: body === undefined ? { Accept: 'application/json' } : { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: body === undefined || isForm ? { Accept: 'application/json' } : { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(0, 'network', 'Network error');
@@ -71,5 +73,5 @@ export const http = {
   get: <T>(url: string) => request<T>('GET', url),
   post: <T>(url: string, body?: unknown) => request<T>('POST', url, body ?? {}),
   put: <T>(url: string, body: unknown) => request<T>('PUT', url, body),
-  delete: (url: string) => request<void>('DELETE', url),
+  delete: <T = void>(url: string) => request<T>('DELETE', url),
 };

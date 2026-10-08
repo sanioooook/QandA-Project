@@ -15,6 +15,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useToastsStore } from '@/stores/toasts';
 import { clock, effectiveStatus, remaining } from '@/utils/deadline';
 import ShareDialog from '@/components/ShareDialog.vue';
+import UserAvatar from '@/components/UserAvatar.vue';
 import NotFoundView from './NotFoundView.vue';
 
 const props = defineProps<{ id: string }>();
@@ -165,6 +166,7 @@ async function remove() {
         <h1 class="title">{{ survey.title }}</h1>
         <p v-if="survey.description" class="description">{{ survey.description }}</p>
         <p class="meta muted">
+          <UserAvatar :name="survey.author.name" :url="survey.author.avatarUrl" :size="22" />
           {{ t('survey.by', { author: survey.author.name }) }} ·
           {{ survey.publishedAt ? t('survey.published', { date: date(survey.publishedAt) }) : t('survey.created', { date: date(survey.createdAt) }) }}
         </p>
@@ -216,7 +218,7 @@ async function remove() {
               <summary>{{ t('survey.votersTitle') }} ({{ option.voters.length }})</summary>
               <ul>
                 <li v-for="voter in option.voters" :key="voter.userId">
-                  <span>{{ voter.name }}</span>
+                  <span class="voter"><UserAvatar :name="voter.name" :url="voter.avatarUrl" :size="22" />{{ voter.name }}</span>
                   <time class="muted" :datetime="voter.votedAt">{{ date(voter.votedAt) }}</time>
                 </li>
               </ul>
@@ -351,6 +353,19 @@ async function remove() {
 .meta,
 .small {
   font-size: 0.86rem;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+
+.voter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .countdown {

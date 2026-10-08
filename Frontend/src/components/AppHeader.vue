@@ -2,23 +2,17 @@
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import PrefsControls from '@/components/PrefsControls.vue';
+import UserMenu from '@/components/UserMenu.vue';
 import { useAuthStore } from '@/stores/auth';
 
 const { t } = useI18n();
-const router = useRouter();
 const route = useRoute();
 // From a survey page, signing in should bring the guest back to that survey.
 const loginQuery = computed(() => (route.name === 'survey' ? { redirect: route.fullPath } : {}));
-const auth = useAuthStore();
-const { user, isLoggedIn } = storeToRefs(auth);
-
-async function logout() {
-  await auth.logout();
-  await router.push({ name: 'login' });
-}
+const { isLoggedIn } = storeToRefs(useAuthStore());
 </script>
 
 <template>
@@ -38,21 +32,15 @@ async function logout() {
       </nav>
 
       <div class="actions">
-        <PrefsControls />
         <template v-if="isLoggedIn">
           <RouterLink :to="{ name: 'create' }" class="btn btn-primary btn-sm new" :aria-label="t('nav.newSurvey')">
             <AppIcon name="plus" :size="16" />
             <span>{{ t('nav.newSurvey') }}</span>
           </RouterLink>
-          <span class="user" :title="t('nav.signedInAs', { name: user?.displayName, email: user?.email })">
-            <span class="avatar" aria-hidden="true">{{ user?.displayName.charAt(0).toUpperCase() }}</span>
-            <span class="login">{{ user?.displayName }}</span>
-          </span>
-          <button type="button" class="icon-btn" :title="t('nav.logout')" :aria-label="t('nav.logout')" @click="logout">
-            <AppIcon name="logout" />
-          </button>
+          <UserMenu />
         </template>
         <template v-else>
+          <PrefsControls />
           <RouterLink :to="{ name: 'login', query: loginQuery }" class="btn btn-sm btn-ghost">{{ t('nav.login') }}</RouterLink>
           <RouterLink :to="{ name: 'register', query: loginQuery }" class="btn btn-sm btn-primary">{{ t('nav.register') }}</RouterLink>
         </template>
@@ -127,34 +115,10 @@ async function logout() {
   margin-left: auto;
 }
 
-.user {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 160px;
-  font-weight: 600;
-}
 
-.avatar {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--primary-soft);
-  color: var(--primary);
-  font-size: 0.85rem;
-}
 
-.login {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 @media (max-width: 960px) {
-  .login,
   .new span {
     display: none;
   }

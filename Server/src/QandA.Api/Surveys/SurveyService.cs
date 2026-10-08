@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using QandA.Api.Account;
 using QandA.Api.Auth;
 using QandA.Api.Common;
 using QandA.Api.Data;
@@ -45,6 +46,7 @@ public class SurveyService(AppDbContext db, ParticipationPolicy participation, T
                 s.Title,
                 s.AuthorId,
                 AuthorName = s.Author.DisplayName,
+                AuthorAvatar = s.Author.AvatarUpdatedAt,
                 s.CreatedAt,
                 s.PublishedAt,
                 s.Deadline,
@@ -55,7 +57,7 @@ public class SurveyService(AppDbContext db, ParticipationPolicy participation, T
             .ToListAsync(ct);
 
         var items = rows.Select(r => new SurveySummary(
-            r.Id, r.Title, new PublicUserDto(r.AuthorId, r.AuthorName), r.CreatedAt, r.PublishedAt, r.Deadline,
+            r.Id, r.Title, new PublicUserDto(r.AuthorId, r.AuthorName, Avatars.Url(r.AuthorId, r.AuthorAvatar)), r.CreatedAt, r.PublishedAt, r.Deadline,
             SurveyRules.StatusOf(r.PublishedAt, r.Deadline, now), r.OptionCount, r.VoterCount, r.HasVoted)).ToList();
 
         return new Paged<SurveySummary>(items, total, page, pageSize);
@@ -68,7 +70,7 @@ public class SurveyService(AppDbContext db, ParticipationPolicy participation, T
             .Where(x => x.Id == id)
             .Select(x => new
             {
-                x.Id, x.Title, x.Description, x.AuthorId, AuthorName = x.Author.DisplayName, x.CreatedAt, x.PublishedAt,
+                x.Id, x.Title, x.Description, x.AuthorId, AuthorName = x.Author.DisplayName, AuthorAvatar = x.Author.AvatarUpdatedAt, x.CreatedAt, x.PublishedAt,
                 x.Deadline, x.MaxVotesPerUser, x.AllowParticipantOptions, x.MaxOptionsPerParticipant,
             })
             .SingleOrDefaultAsync(ct);
@@ -94,9 +96,9 @@ public class SurveyService(AppDbContext db, ParticipationPolicy participation, T
         {
             voters = (await votes
                     .OrderBy(v => v.VotedAt)
-                    .Select(v => new { v.OptionId, Voter = new VoterDto(v.UserId, v.User.DisplayName, v.VotedAt) })
+                    .Select(v => new { v.OptionId, v.UserId, v.User.DisplayName, v.User.AvatarUpdatedAt, v.VotedAt })
                     .ToListAsync(ct))
-                .ToLookup(v => v.OptionId, v => v.Voter);
+                .ToLookup(v => v.OptionId, v => new VoterDto(v.UserId, v.DisplayName, Avatars.Url(v.UserId, v.AvatarUpdatedAt), v.VotedAt));
         }
 
         var status = SurveyRules.StatusOf(s.PublishedAt, s.Deadline, now);
@@ -107,7 +109,7 @@ public class SurveyService(AppDbContext db, ParticipationPolicy participation, T
             && (isAuthor || (s.AllowParticipantOptions && myAdded < s.MaxOptionsPerParticipant));
 
         return new SurveyDetails(
-            s.Id, s.Title, s.Description, new PublicUserDto(s.AuthorId, s.AuthorName), s.CreatedAt, s.PublishedAt, s.Deadline,
+            s.Id, s.Title, s.Description, new PublicUserDto(s.AuthorId, s.AuthorName, Avatars.Url(s.AuthorId, s.AuthorAvatar)), s.CreatedAt, s.PublishedAt, s.Deadline,
             status, s.MaxVotesPerUser, s.AllowParticipantOptions, s.MaxOptionsPerParticipant, isAuthor,
             voterCount, options.Sum(o => o.Votes), myVotes, myAdded,
             CanVote: status == SurveyStatus.Active && mayParticipate,

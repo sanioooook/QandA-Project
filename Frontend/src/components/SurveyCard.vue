@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import type { SurveySummary } from '@/api/types';
 import AppIcon from '@/components/AppIcon.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
+import UserAvatar from '@/components/UserAvatar.vue';
 import { useFormat } from '@/composables/useFormat';
 import { useNow } from '@/composables/useNow';
 import { effectiveStatus } from '@/utils/deadline';
@@ -24,6 +25,7 @@ const status = computed(() => effectiveStatus(props.survey.status, props.survey.
     </div>
     <h2 class="title">{{ survey.title }}</h2>
     <p class="meta muted">
+      <UserAvatar :name="survey.author.name" :url="survey.author.avatarUrl" :size="20" />
       {{ t('survey.by', { author: survey.author.name }) }} ·
       {{ survey.publishedAt ? t('survey.published', { date: date(survey.publishedAt) }) : t('survey.created', { date: date(survey.createdAt) }) }}
     </p>
@@ -77,6 +79,10 @@ const status = computed(() => effectiveStatus(props.survey.status, props.survey.
 }
 
 .meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
   font-size: 0.85rem;
 }
 

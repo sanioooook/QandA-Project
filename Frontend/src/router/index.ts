@@ -24,6 +24,8 @@ export const routes: RouteRecordRaw[] = [
   { path: '/surveys/new', name: 'create', component: () => import('@/views/SurveyEditView.vue'), meta: { requiresAuth: true } },
   { path: '/surveys/:id/edit', name: 'edit', component: () => import('@/views/SurveyEditView.vue'), props: true, meta: { requiresAuth: true } },
   { path: '/surveys/:id', name: 'survey', component: () => import('@/views/SurveyView.vue'), props: true },
+  { path: '/account', name: 'account', component: () => import('@/views/AccountView.vue'), meta: { requiresAuth: true } },
+  { path: '/account/password', name: 'change-password', component: () => import('@/views/ChangePasswordView.vue'), meta: { requiresAuth: true } },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') },
 ];
 

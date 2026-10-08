@@ -34,7 +34,7 @@ public record SurveySummary(
     int VoterCount,
     bool HasVoted);
 
-public record VoterDto(int UserId, string Name, DateTimeOffset VotedAt);
+public record VoterDto(int UserId, string Name, string? AvatarUrl, DateTimeOffset VotedAt);
 
 /// <param name="Voters">Only filled for the survey author; null for everyone else.</param>
 public record OptionDto(int Id, string Text, int Votes, string? AddedBy, IReadOnlyList<VoterDto>? Voters);

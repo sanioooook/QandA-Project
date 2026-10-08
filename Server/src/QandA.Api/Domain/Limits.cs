@@ -6,6 +6,8 @@ public static class Limits
     public const int EmailMax = 254;
     public const int DisplayNameMin = 2;
     public const int DisplayNameMax = 50;
+    /// <summary>The client crops and compresses avatars to 256x256 before upload, so this is generous.</summary>
+    public const int AvatarMaxBytes = 512 * 1024;
     public const int PasswordMin = 8;
     public const int PasswordMax = 128;
 
