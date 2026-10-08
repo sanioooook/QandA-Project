@@ -141,6 +141,24 @@ describe('app', () => {
     expect(api.callsTo('PUT')).toHaveLength(0);
   });
 
+  it('deadlines are shown in the time zone chosen in the settings, with the offset', async () => {
+    const alice = api.addUser('alice@example.com', 'Alice');
+    // 23:59:59.999 on Oct 22 in Kyiv (far ahead, so the survey stays open whenever the test runs).
+    const survey = api.addSurvey(alice, 'Zoned', ['A', 'B'], { deadline: '2036-10-22T20:59:59.999Z' });
+    api.sessionUserId = alice.id;
+    localStorage.setItem('qanda.timeZone', 'America/New_York');
+
+    const router = await startApp(`/surveys/${survey.id}`);
+    expect(await screen.findByText('Oct 22, 2036, 4:59 PM GMT-4')).toBeTruthy();
+
+    await router.push('/account');
+    await user.selectOptions(await screen.findByLabelText('Time zone'), 'Europe/Kyiv');
+    expect(localStorage.getItem('qanda.timeZone')).toBe('Europe/Kyiv');
+    await router.push(`/surveys/${survey.id}`);
+
+    expect(await screen.findByText('Oct 22, 2036, 11:59 PM GMT+3')).toBeTruthy();
+  });
+
   it('an expired session while voting sends the user to sign in and back to the survey', async () => {
     const alice = api.addUser('alice@example.com', 'Alice');
     const survey = api.addSurvey(alice, 'Expiring', ['Yes', 'No']);

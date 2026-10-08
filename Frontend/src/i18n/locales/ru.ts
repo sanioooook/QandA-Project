@@ -20,6 +20,8 @@ export default {
     signedInAs: '{name} ({email})',
   },
   prefs: {
+    timeZone: 'Часовой пояс',
+    timeZoneAuto: 'Автоматически: {zone}',
     theme: 'Тема',
     light: 'Светлая',
     dark: 'Тёмная',
@@ -134,6 +136,8 @@ export default {
     totalVotes: 'Всего',
   },
   form: {
+    deadlineZone: 'Время по поясу {zone}.',
+    changeZone: 'Изменить',
     createTitle: 'Новый опрос',
     editTitle: 'Редактирование черновика',
     title: 'Вопрос',
@@ -224,6 +228,7 @@ export default {
     changePassword: 'Сменить пароль',
   },
   account: {
+    timeZoneHint: 'Даты и дедлайны показываются в этом поясе, и время дедлайна, которое вы вводите, тоже считается в нём.',
     title: 'Настройки',
     profile: 'Профиль',
     uploadAvatar: 'Загрузить фото',

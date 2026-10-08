@@ -1,29 +1,37 @@
 import type { SurveyStatus } from '@/api/types';
+import { wallTime, zonedToInstant } from './timeZone';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
 /**
- * Deadline from the form: the date is required, the time optional.
- * Without a time the survey runs to the very end of that day (23:59:59.999 local time).
+ * Deadline from the form, read in `timeZone`: the date is required, the time optional.
+ * Without a time the survey runs to the very end of that day (23:59:59.999 in that zone).
  */
-export function composeDeadline(date: string, time: string): Date | null {
-  if (!date) return null;
-  const result = new Date(`${date}T${time || '23:59:59.999'}`);
-  return Number.isNaN(result.getTime()) ? null : result;
+export function composeDeadline(date: string, time: string, timeZone: string): Date | null {
+  const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!d) return null;
+  const t = /^(\d{2}):(\d{2})$/.exec(time);
+  if (time && !t) return null;
+  const [year, month, day] = [Number(d[1]), Number(d[2]), Number(d[3])];
+  const instant = t
+    ? zonedToInstant({ year, month, day, hour: Number(t[1]), minute: Number(t[2]), second: 0 }, timeZone)
+    : zonedToInstant({ year, month, day, hour: 23, minute: 59, second: 59, ms: 999 }, timeZone);
+  return Number.isNaN(instant) ? null : new Date(instant);
 }
 
 /** Inverse of composeDeadline: an end-of-day deadline is shown as a date without a time. */
-export function splitDeadline(iso: string | null): { date: string; time: string } {
+export function splitDeadline(iso: string | null, timeZone: string): { date: string; time: string } {
   if (!iso) return { date: '', time: '' };
-  const d = new Date(iso);
-  const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  const endOfDay = d.getHours() === 23 && d.getMinutes() === 59 && d.getSeconds() === 59;
-  return { date, time: endOfDay ? '' : `${pad(d.getHours())}:${pad(d.getMinutes())}` };
+  const w = wallTime(new Date(iso).getTime(), timeZone);
+  const date = `${w.year}-${pad(w.month)}-${pad(w.day)}`;
+  const endOfDay = w.hour === 23 && w.minute === 59 && w.second === 59;
+  return { date, time: endOfDay ? '' : `${pad(w.hour)}:${pad(w.minute)}` };
 }
 
-/** `yyyy-mm-dd` of today in local time, for the `min` of the date input. */
-export function todayInput(now = new Date()): string {
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+/** `yyyy-mm-dd` of today in `timeZone`, for the `min` of the date input. */
+export function todayInput(timeZone: string, now = Date.now()): string {
+  const w = wallTime(now, timeZone);
+  return `${w.year}-${pad(w.month)}-${pad(w.day)}`;
 }
 
 export interface Remaining {

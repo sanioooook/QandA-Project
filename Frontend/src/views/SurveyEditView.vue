@@ -9,7 +9,9 @@ import { useErrors } from '@/composables/useErrors';
 import { useFormat } from '@/composables/useFormat';
 import { LIMITS } from '@/limits';
 import { useSurveysStore } from '@/stores/surveys';
+import { usePrefsStore } from '@/stores/prefs';
 import { composeDeadline, splitDeadline, todayInput } from '@/utils/deadline';
+import { zoneName } from '@/utils/timeZone';
 import { useToastsStore } from '@/stores/toasts';
 import NotFoundView from './NotFoundView.vue';
 
@@ -21,7 +23,10 @@ const router = useRouter();
 const store = useSurveysStore();
 const toasts = useToastsStore();
 const { codeMessage, errorMessage, fieldErrors } = useErrors();
-const { date: formatDate } = useFormat();
+const { dateWithZone } = useFormat();
+const prefs = usePrefsStore();
+// Deadline dates and times are entered in the zone chosen in the settings.
+const zone = computed(() => prefs.effectiveTimeZone);
 
 const form = reactive({
   title: '',
@@ -43,7 +48,7 @@ const filledOptions = computed(() => form.options.map((o) => o.trim()).filter(Bo
 const maxVotesLimit = computed(() =>
   form.allowParticipantOptions ? LIMITS.maxVotesPerUserCap : Math.max(1, filledOptions.value.length));
 
-const deadline = computed(() => composeDeadline(form.deadlineDate, form.deadlineTime));
+const deadline = computed(() => composeDeadline(form.deadlineDate, form.deadlineTime, zone.value));
 
 function clearDeadline() {
   form.deadlineDate = '';
@@ -54,7 +59,7 @@ function fill(survey: SurveyDetails) {
   form.title = survey.title;
   form.description = survey.description ?? '';
   form.options = survey.options.map((o) => o.text);
-  ({ date: form.deadlineDate, time: form.deadlineTime } = splitDeadline(survey.deadline));
+  ({ date: form.deadlineDate, time: form.deadlineTime } = splitDeadline(survey.deadline, zone.value));
   form.maxVotesPerUser = survey.maxVotesPerUser;
   form.allowParticipantOptions = survey.allowParticipantOptions;
   form.maxOptionsPerParticipant = survey.maxOptionsPerParticipant;
@@ -140,7 +145,7 @@ async function save(publish: boolean) {
   }
 }
 
-const minDate = todayInput();
+const minDate = computed(() => todayInput(zone.value));
 </script>
 
 <template>
@@ -260,8 +265,12 @@ const minDate = todayInput();
               </button>
             </div>
             <p v-if="errors.deadline" class="error-text">{{ errors.deadline }}</p>
-            <p v-else-if="deadline" class="hint">{{ t('form.deadlineSummary', { date: formatDate(deadline.toISOString()) }) }}</p>
+            <p v-else-if="deadline" class="hint">{{ t('form.deadlineSummary', { date: dateWithZone(deadline.toISOString()) }) }}</p>
             <p v-else class="hint">{{ t('form.deadlineHint') }}</p>
+            <p class="hint">
+              {{ t('form.deadlineZone', { zone: zoneName(zone) }) }}
+              <RouterLink :to="{ name: 'account' }">{{ t('form.changeZone') }}</RouterLink>
+            </p>
           </div>
         </div>
 

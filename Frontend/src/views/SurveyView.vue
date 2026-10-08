@@ -26,7 +26,7 @@ const store = useSurveysStore();
 const auth = useAuthStore();
 const toasts = useToastsStore();
 const { errorMessage, fieldErrors } = useErrors();
-const { date } = useFormat();
+const { date, dateWithZone, dateTitle } = useFormat();
 
 const survey = computed(() => store.getSurvey(props.id));
 const notFound = ref(false);
@@ -158,16 +158,16 @@ async function remove() {
         <ShareDialog v-if="survey.status !== 'draft'" :url="shareUrl" :title="survey.title" />
         <div class="badges">
           <StatusBadge :status="status" />
-          <span v-if="survey.deadline" class="deadline muted" :title="date(survey.deadline)">
+          <span v-if="survey.deadline" class="deadline muted" :title="dateTitle(survey.deadline)">
             <AppIcon name="clock" :size="15" />
-            {{ status === 'closed' ? t('survey.closedAt', { date: date(survey.deadline) }) : date(survey.deadline) }}
+            {{ status === 'closed' ? t('survey.closedAt', { date: dateWithZone(survey.deadline) }) : dateWithZone(survey.deadline) }}
           </span>
         </div>
         <h1 class="title">{{ survey.title }}</h1>
         <p v-if="survey.description" class="description">{{ survey.description }}</p>
         <p class="meta muted">
           <UserAvatar :name="survey.author.name" :url="survey.author.avatarUrl" :size="22" />
-          <span>
+          <span :title="dateTitle(survey.publishedAt ?? survey.createdAt)">
             {{ t('survey.by', { author: survey.author.name }) }} ·
             {{ survey.publishedAt ? t('survey.published', { date: date(survey.publishedAt) }) : t('survey.created', { date: date(survey.createdAt) }) }}
           </span>
@@ -221,7 +221,7 @@ async function remove() {
               <ul>
                 <li v-for="voter in option.voters" :key="voter.userId">
                   <span class="voter"><UserAvatar :name="voter.name" :url="voter.avatarUrl" :size="22" />{{ voter.name }}</span>
-                  <time class="muted" :datetime="voter.votedAt">{{ date(voter.votedAt) }}</time>
+                  <time class="muted" :datetime="voter.votedAt" :title="dateTitle(voter.votedAt)">{{ date(voter.votedAt) }}</time>
                 </li>
               </ul>
             </details>

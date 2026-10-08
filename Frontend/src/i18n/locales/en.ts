@@ -18,6 +18,8 @@ export default {
     signedInAs: '{name} ({email})',
   },
   prefs: {
+    timeZone: 'Time zone',
+    timeZoneAuto: 'Automatic: {zone}',
     theme: 'Theme',
     light: 'Light',
     dark: 'Dark',
@@ -132,6 +134,8 @@ export default {
     totalVotes: 'Total',
   },
   form: {
+    deadlineZone: 'Times are in {zone}.',
+    changeZone: 'Change',
     createTitle: 'New survey',
     editTitle: 'Edit draft',
     title: 'Question',
@@ -222,6 +226,7 @@ export default {
     changePassword: 'Change password',
   },
   account: {
+    timeZoneHint: 'Dates and deadlines are shown in this time zone, and deadline times you type in are read in it.',
     title: 'Settings',
     profile: 'Profile',
     uploadAvatar: 'Upload photo',

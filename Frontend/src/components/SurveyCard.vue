@@ -11,7 +11,7 @@ import { effectiveStatus } from '@/utils/deadline';
 
 const props = defineProps<{ survey: SurveySummary }>();
 const { t } = useI18n();
-const { date, relative } = useFormat();
+const { date, dateWithZone, dateTitle, relative } = useFormat();
 // Refresh "closes in 5 minutes" and flip to closed when the deadline passes while the list is open.
 const now = useNow(30_000);
 const status = computed(() => effectiveStatus(props.survey.status, props.survey.deadline, now.value));
@@ -26,7 +26,7 @@ const status = computed(() => effectiveStatus(props.survey.status, props.survey.
     <h2 class="title">{{ survey.title }}</h2>
     <p class="meta muted">
       <UserAvatar :name="survey.author.name" :url="survey.author.avatarUrl" :size="20" />
-      <span>
+      <span :title="dateTitle(survey.publishedAt ?? survey.createdAt)">
         {{ t('survey.by', { author: survey.author.name }) }} ·
         {{ survey.publishedAt ? t('survey.published', { date: date(survey.publishedAt) }) : t('survey.created', { date: date(survey.createdAt) }) }}
       </span>
@@ -34,9 +34,9 @@ const status = computed(() => effectiveStatus(props.survey.status, props.survey.
     <div class="stats muted">
       <span><AppIcon name="users" :size="15" />{{ t('survey.voters', survey.voterCount) }}</span>
       <span>{{ t('survey.options', survey.optionCount) }}</span>
-      <span v-if="survey.deadline" :title="date(survey.deadline)">
+      <span v-if="survey.deadline" :title="dateTitle(survey.deadline)">
         <AppIcon name="clock" :size="15" />
-        {{ status === 'closed' ? t('survey.closedAt', { date: date(survey.deadline) }) : t('survey.closesIn', { relative: relative(survey.deadline) }) }}
+        {{ status === 'closed' ? t('survey.closedAt', { date: dateWithZone(survey.deadline) }) : t('survey.closesIn', { relative: relative(survey.deadline) }) }}
       </span>
     </div>
   </RouterLink>

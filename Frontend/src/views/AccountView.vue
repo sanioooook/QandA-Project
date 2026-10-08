@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AppIcon from '@/components/AppIcon.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
@@ -12,12 +12,15 @@ import { usePrefsStore, type Theme } from '@/stores/prefs';
 import { useToastsStore } from '@/stores/toasts';
 import { displayNameError } from '@/utils/accountRules';
 import { toSquareImage } from '@/utils/image';
+import { allTimeZones, browserTimeZone, zoneName } from '@/utils/timeZone';
 
 const { t } = useI18n();
 const auth = useAuthStore();
 const toasts = useToastsStore();
 const { user, config } = storeToRefs(auth);
-const { theme, locale } = storeToRefs(usePrefsStore());
+const { theme, locale, timeZone } = storeToRefs(usePrefsStore());
+const zoneOptions = computed(() => allTimeZones().map((zone) => ({ zone, label: zoneName(zone) })));
+const autoZoneLabel = computed(() => zoneName(browserTimeZone()));
 const { codeMessage, errorMessage, fieldErrors } = useErrors();
 
 // --- avatar ---------------------------------------------------------------
@@ -163,6 +166,14 @@ const themes: Theme[] = ['light', 'dark', 'system'];
         <p class="hint">{{ t('account.languageHint') }}</p>
       </div>
       <div class="field">
+        <label class="label" for="time-zone">{{ t('prefs.timeZone') }}</label>
+        <select id="time-zone" v-model="timeZone" class="input zone">
+          <option value="auto">{{ t('prefs.timeZoneAuto', { zone: autoZoneLabel }) }}</option>
+          <option v-for="option in zoneOptions" :key="option.zone" :value="option.zone">{{ option.label }}</option>
+        </select>
+        <p class="hint">{{ t('account.timeZoneHint') }}</p>
+      </div>
+      <div class="field">
         <span class="label">{{ t('prefs.theme') }}</span>
         <div class="choices" role="radiogroup" :aria-label="t('prefs.theme')">
           <label v-for="value in themes" :key="value" class="choice" :class="{ active: theme === value }">
@@ -255,6 +266,10 @@ const themes: Theme[] = ['light', 'dark', 'system'];
 .badge.warn {
   background: var(--warning-soft);
   color: var(--warning);
+}
+
+.zone {
+  max-width: 420px;
 }
 
 .choices {
