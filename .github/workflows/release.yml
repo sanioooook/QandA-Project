@@ -63,15 +63,28 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
-      - name: Pin the compose file to this version
+      - name: Pin the compose file to this version and write the notes
         run: |
           version="${GITHUB_REF_NAME#v}"
           owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          repo_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
           mkdir dist
           sed -e "s|\${QANDA_OWNER:-sanioooook}|${owner}|g" -e "s|\${QANDA_VERSION:-latest}|${version}|g" \
             docker-compose.release.yml > dist/docker-compose.yml
-          cp .env.example dist/.env.example
+          # Images cannot be release assets, so the notes link them; the generated changelog follows.
+          cat > dist/notes.md <<EOF
+          ## Docker images (linux/amd64, linux/arm64)
+
+          | Image | Pull |
+          |---|---|
+          | [qanda-api](${repo_url}/pkgs/container/qanda-api) | \`docker pull ghcr.io/${owner}/qanda-api:${version}\` |
+          | [qanda-web](${repo_url}/pkgs/container/qanda-web) | \`docker pull ghcr.io/${owner}/qanda-web:${version}\` |
+
+          ## Run
+
+          Download \`docker-compose.yml\` below (it is pinned to these images) into an empty folder and run \`docker compose up -d\`, then open http://localhost:8080. Settings: [\`.env.example\`](${repo_url}/blob/${GITHUB_REF_NAME}/.env.example), see the [README](${repo_url}/blob/${GITHUB_REF_NAME}/README.md#run-a-released-version).
+          EOF
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/docker-compose.yml dist/.env.example --generate-notes --title "QandA $GITHUB_REF_NAME"
+        run: gh release create "$GITHUB_REF_NAME" dist/docker-compose.yml --notes-file dist/notes.md --generate-notes --title "QandA $GITHUB_REF_NAME"

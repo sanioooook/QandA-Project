@@ -34,8 +34,8 @@ The interface is available in Ukrainian, English and Russian, with light, dark a
 
 Releases publish ready-made Docker images for `linux/amd64` and `linux/arm64` (Raspberry Pi 4/5 included). You only need Docker with Compose.
 
-1. Download `docker-compose.yml` (and, optionally, `.env.example`) from the assets of the [latest release](https://github.com/sanioooook/QandA-Project/releases/latest) into an empty folder.
-2. Optionally copy `.env.example` to `.env` and set what you need: at least `POSTGRES_PASSWORD` if the machine is reachable by others, and `PUBLIC_URL` if users open the app at an address other than `http://localhost:8080`.
+1. Download `docker-compose.yml` from the assets of the [latest release](https://github.com/sanioooook/QandA-Project/releases/latest) into an empty folder. It is pinned to that release's images; the release notes link the images themselves.
+2. Optionally save [`.env.example`](.env.example) next to it as `.env` and set what you need: at least `POSTGRES_PASSWORD` if the machine is reachable by others, and `PUBLIC_URL` if users open the app at an address other than `http://localhost:8080`.
 3. Start it:
 
    ```bash
@@ -105,7 +105,7 @@ CI runs both suites in parallel on every push.
 
 ### Releasing
 
-Push a version tag. CI runs the tests, then the images are built for amd64 and arm64, pushed to `ghcr.io/sanioooook/qanda-api` and `qanda-web`, and a GitHub release is created with a `docker-compose.yml` pinned to that version.
+Push a version tag. CI runs the tests, then the images are built for amd64 and arm64, pushed to `ghcr.io/sanioooook/qanda-api` and `qanda-web`, and a GitHub release is created with a `docker-compose.yml` pinned to that version and the images listed in its notes.
 
 ```bash
 git tag v2.0.0
