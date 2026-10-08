@@ -3,6 +3,7 @@ WORKDIR /src
 COPY Directory.Build.props QandA.slnx global.json ./
 COPY src/QandA.Api/QandA.Api.csproj src/QandA.Api/
 COPY tests/QandA.Api.Tests/QandA.Api.Tests.csproj tests/QandA.Api.Tests/
+COPY tests/QandA.Api.UnitTests/QandA.Api.UnitTests.csproj tests/QandA.Api.UnitTests/
 RUN dotnet restore QandA.slnx
 COPY . .
 
