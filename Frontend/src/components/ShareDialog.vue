@@ -9,12 +9,22 @@ const props = defineProps<{ url: string; title: string }>();
 const { t } = useI18n();
 const toasts = useToastsStore();
 const dialog = ref<HTMLDialogElement | null>(null);
-const input = ref<HTMLInputElement | null>(null);
+const link = ref<HTMLElement | null>(null);
+const copied = ref(false);
+let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 const canNativeShare = computed(() => typeof navigator !== 'undefined' && typeof navigator.share === 'function');
 
 function open() {
+  copied.value = false;
   dialog.value?.showModal();
-  input.value?.select();
+}
+
+function selectLink() {
+  if (!link.value) return;
+  const range = document.createRange();
+  range.selectNodeContents(link.value);
+  window.getSelection()?.removeAllRanges();
+  window.getSelection()?.addRange(range);
 }
 
 function close() {
@@ -24,11 +34,13 @@ function close() {
 async function copy() {
   try {
     await navigator.clipboard.writeText(props.url);
-    toasts.success(t('toast.linkCopied'));
-    close();
+    copied.value = true;
+    clearTimeout(copiedTimer);
+    copiedTimer = setTimeout(() => { copied.value = false; }, 2000);
   } catch {
-    // Clipboard API unavailable (e.g. plain http on a LAN address): leave the link selected for Ctrl+C.
-    input.value?.select();
+    // Clipboard API unavailable (e.g. plain http on a LAN address): select the link for Ctrl+C.
+    selectLink();
+    toasts.error(t('survey.copyManually'));
   }
 }
 
@@ -63,11 +75,19 @@ defineExpose({ open });
         </button>
       </header>
       <p class="muted hint">{{ t('survey.shareHint') }}</p>
-      <div class="row">
-        <input ref="input" class="input" :value="url" readonly :aria-label="t('survey.share')" @focus="input?.select()" />
-        <button type="button" class="btn btn-primary" @click="copy">
-          <AppIcon name="link" :size="16" />{{ t('survey.copyLink') }}
+      <div class="link-box">
+        <code ref="link" class="url" :title="url" @click="selectLink">{{ url }}</code>
+        <button
+          type="button"
+          class="icon-btn copy"
+          :class="{ done: copied }"
+          :aria-label="copied ? t('toast.linkCopied') : t('survey.copyLink')"
+          :title="copied ? t('toast.linkCopied') : t('survey.copyLink')"
+          @click="copy"
+        >
+          <AppIcon :name="copied ? 'check' : 'copy'" :size="17" />
         </button>
+        <span class="sr-only" aria-live="polite">{{ copied ? t('toast.linkCopied') : '' }}</span>
       </div>
       <button v-if="canNativeShare" type="button" class="btn btn-block" @click="nativeShare">
         <AppIcon name="share" :size="16" />{{ t('survey.shareVia') }}
@@ -90,6 +110,8 @@ defineExpose({ open });
 
 .body {
   display: grid;
+  /* minmax(0, …) keeps a long link from stretching the dialog sideways. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   padding: 20px;
 }
@@ -100,14 +122,27 @@ defineExpose({ open });
   justify-content: space-between;
 }
 
-.row {
+.link-box {
   display: flex;
+  align-items: center;
   gap: 8px;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
 }
 
-@media (max-width: 480px) {
-  .row {
-    flex-direction: column;
-  }
+.url {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 0.9rem/1.6 ui-monospace, 'Cascadia Code', Consolas, monospace;
+  color: var(--text);
+}
+
+.copy.done {
+  color: var(--success);
 }
 </style>
