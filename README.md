@@ -12,7 +12,7 @@ The interface is available in Ukrainian, English and Russian, with light, dark a
 |---|---|
 | ![The author's view of a survey: countdown, results and who voted](docs/screenshots/survey-author.png)<br>**The author's view:** countdown, results, who voted for what | ![What a guest sees after following a shared link](docs/screenshots/guest.png)<br>**Shared link, as a guest:** results are public, voting needs an account |
 | ![Creating a survey](docs/screenshots/new-survey.png)<br>**New survey:** options, vote limit, deadline, participant options | ![Voting in dark mode](docs/screenshots/survey-dark.png)<br>**Dark theme:** a participant who already voted |
-| ![Account settings](docs/screenshots/settings.png)<br>**Settings:** photo, name, password, language, theme | ![Share dialog](docs/screenshots/share.png)<br>**Sharing:** the link with a copy button |
+| ![Account settings](docs/screenshots/settings.png)<br>**Settings:** photo, name, password, language, time zone, theme | ![Share dialog](docs/screenshots/share.png)<br>**Sharing:** the link with a copy button |
 
 <p align="center"><img src="docs/screenshots/mobile.png" width="320" alt="Voting on a phone"><br><b>On a phone</b></p>
 
@@ -23,11 +23,11 @@ The interface is available in Ukrainian, English and Russian, with light, dark a
 - **Voting rules set by the author:**
   - how many options a participant may pick (one by default);
   - whether participants may add their own options, and how many each;
-  - an optional deadline: a date, or a date and time. A date alone means the end of that day. A live countdown shows the time left, and voting closes the moment it runs out.
+  - an optional deadline: a date, or a date and time. A date alone means the end of that day. A live countdown shows the time left, and voting closes the moment it runs out. Deadlines are shown with their UTC offset ("Oct 22, 11:59 PM GMT+3") in each viewer's own time zone.
 - **Changing your mind.** Until the deadline, a participant can change or withdraw their vote. A new option can be added and voted for in one step.
 - **Results.** Everyone sees the counts and percentages. Only the author sees who voted for what, and when.
 - **Lists.** Active surveys, your own surveys (filter: drafts, active, closed) and the surveys you voted in.
-- **Accounts.** Sign up with an email, a display name and a password. The display name and an optional profile photo are what other people see; the email stays private. In the settings you can change the name, photo, password, language and theme.
+- **Accounts.** Sign up with an email, a display name and a password. The display name and an optional profile photo are what other people see; the email stays private. In the settings you can change the name, photo, password, language, time zone (the device's by default) and theme.
 - **Email (optional).** With an SMTP server configured, new accounts confirm their address before voting, forgotten passwords can be reset by email, and password changes are notified. Without one, everything else works the same: no confirmation is needed and password reset is hidden.
 
 ## Run a released version
