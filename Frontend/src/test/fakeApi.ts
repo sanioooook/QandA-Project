@@ -3,7 +3,7 @@ import type { Account, SurveyDetails, SurveySummary } from '@/api/types';
 
 /**
  * In-memory stand-in for the API, for app-level integration tests. It keeps users, the session and
- * surveys, and answers with the same DTO shapes as Server/src/QandA.Api. Only the behaviour the
+ * surveys, and answers with the same DTO shapes as Backend/src/QandA.Api. Only the behaviour the
  * screens rely on is modelled; the real rules are covered by the backend tests.
  */
 export class FakeApi {

@@ -23,7 +23,7 @@ jobs:
       matrix:
         include:
           - image: api
-            context: ./Server
+            context: ./Backend
           - image: web
             context: ./Frontend
     steps:

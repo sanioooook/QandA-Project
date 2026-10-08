@@ -1,4 +1,4 @@
-// Mirrors the DTOs of Server/src/QandA.Api (camelCase JSON, enums as camelCase strings).
+// Mirrors the DTOs of Backend/src/QandA.Api (camelCase JSON, enums as camelCase strings).
 
 /** The signed-in user's own account. */
 export interface Account {

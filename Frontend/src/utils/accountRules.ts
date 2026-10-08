@@ -1,6 +1,6 @@
 import { EMAIL_PATTERN, LIMITS } from '@/limits';
 
-// Mirror of Server/src/QandA.Api/Auth/AccountRules.cs: each returns the API error code or null.
+// Mirror of Backend/src/QandA.Api/Auth/AccountRules.cs: each returns the API error code or null.
 
 export function emailError(email: string): string | null {
   const value = email.trim();

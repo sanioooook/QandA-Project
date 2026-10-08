@@ -1,4 +1,4 @@
-// Mirrors Server/src/QandA.Api/Domain/Limits.cs, used for client-side validation and error texts.
+// Mirrors Backend/src/QandA.Api/Domain/Limits.cs, used for client-side validation and error texts.
 export const LIMITS = {
   emailMax: 254,
   displayNameMin: 2,

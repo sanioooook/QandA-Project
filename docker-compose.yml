@@ -19,7 +19,7 @@ services:
 
   api:
     build:
-      context: ./Server
+      context: ./Backend
       target: final
     environment:
       ConnectionStrings__Default: Host=db;Database=${POSTGRES_DB:-qanda};Username=${POSTGRES_USER:-qanda};Password=${POSTGRES_PASSWORD:-qanda}
@@ -83,7 +83,7 @@ services:
   api-tests:
     profiles: [test]
     build:
-      context: ./Server
+      context: ./Backend
       target: test
     environment:
       TEST_DB_CONNECTION: Host=db;Username=${POSTGRES_USER:-qanda};Password=${POSTGRES_PASSWORD:-qanda}
