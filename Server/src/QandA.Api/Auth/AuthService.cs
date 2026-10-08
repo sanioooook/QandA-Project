@@ -1,49 +1,68 @@
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using QandA.Api.Common;
 using QandA.Api.Data;
 using QandA.Api.Domain;
+using QandA.Api.Email;
 
 namespace QandA.Api.Auth;
 
-public record CredentialsRequest(string? Login, string? Password);
+public record RegisterRequest(string? Email, string? DisplayName, string? Password, string? Locale);
+public record LoginRequest(string? Email, string? Password);
+public record ConfirmEmailRequest(string? Token);
+public record ForgotPasswordRequest(string? Email, string? Locale);
+public record ResetPasswordRequest(string? Token, string? Password);
+public record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
 
-public record UserDto(int Id, string Login);
+/// <summary>The signed-in user's own account. The email never appears in public DTOs.</summary>
+public record AccountDto(int Id, string Email, string DisplayName, bool EmailConfirmed);
 
-public partial class AuthService(AppDbContext db, IPasswordHasher<User> hasher, TimeProvider clock)
+/// <summary>How other users see someone (survey author, voter).</summary>
+public record PublicUserDto(int Id, string Name);
+
+public record AuthConfigDto(bool EmailEnabled, bool ConfirmationRequired);
+
+/// <summary>Result of an action that (re)issues the auth cookie.</summary>
+public record SignIn(AccountDto Account, string SecurityStamp);
+
+public class AuthService(
+    AppDbContext db,
+    IPasswordHasher<User> hasher,
+    TokenService tokens,
+    IEmailOutbox outbox,
+    IOptions<EmailOptions> emailOptions,
+    IOptions<AppOptions> appOptions,
+    TimeProvider clock)
 {
-    // Hash of a random password, verified against when the login does not exist so that
-    // "unknown login" and "wrong password" take the same time.
+    // Hash of a random password, verified against when the email is unknown so that
+    // "unknown email" and "wrong password" take the same time.
     private static readonly Lazy<string> DummyHash =
         new(() => new PasswordHasher<User>().HashPassword(null!, Guid.NewGuid().ToString()));
 
-    [GeneratedRegex("^[A-Za-z0-9_.@-]+$")]
-    private static partial Regex LoginPattern();
+    private EmailOptions Email => emailOptions.Value;
 
-    public async Task<UserDto> RegisterAsync(CredentialsRequest request, CancellationToken ct)
+    public AuthConfigDto Config() => new(Email.Enabled, Email.ConfirmationRequired);
+
+    public async Task<SignIn> RegisterAsync(RegisterRequest request, CancellationToken ct)
     {
-        var login = (request.Login ?? "").Trim();
-        var password = request.Password ?? "";
+        var (email, normalized) = AccountRules.Email(request.Email);
+        var name = AccountRules.DisplayName(request.DisplayName);
+        AccountRules.Password(request.Password, email);
 
-        if (login.Length < Limits.LoginMin || login.Length > Limits.LoginMax)
-            throw AppException.Validation("login_length", $"Login must be {Limits.LoginMin}-{Limits.LoginMax} characters.", "login");
-        if (!LoginPattern().IsMatch(login))
-            throw AppException.Validation("login_chars", "Login may contain only latin letters, digits and _ . @ -", "login");
-        if (password.Length < Limits.PasswordMin || password.Length > Limits.PasswordMax)
-            throw AppException.Validation("password_length", $"Password must be {Limits.PasswordMin}-{Limits.PasswordMax} characters.", "password");
-        if (!password.Any(char.IsLetter) || !password.Any(char.IsDigit))
-            throw AppException.Validation("password_weak", "Password must contain at least one letter and one digit.", "password");
-        if (string.Equals(password, login, StringComparison.OrdinalIgnoreCase))
-            throw AppException.Validation("password_equals_login", "Password must differ from the login.", "password");
+        if (await db.Users.AnyAsync(u => u.NormalizedEmail == normalized, ct))
+            throw EmailTaken();
 
-        var normalized = login.ToUpperInvariant();
-        if (await db.Users.AnyAsync(u => u.NormalizedLogin == normalized, ct))
-            throw LoginTaken();
-
-        var user = new User { Login = login, NormalizedLogin = normalized, CreatedAt = clock.GetUtcNow() };
-        user.PasswordHash = hasher.HashPassword(user, password);
+        var user = new User
+        {
+            Email = email,
+            NormalizedEmail = normalized,
+            DisplayName = name,
+            Locale = AccountRules.Locale(request.Locale),
+            CreatedAt = clock.GetUtcNow(),
+        };
+        user.PasswordHash = hasher.HashPassword(user, request.Password!);
         db.Users.Add(user);
         try
         {
@@ -51,21 +70,24 @@ public partial class AuthService(AppDbContext db, IPasswordHasher<User> hasher, 
         }
         catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
-            // Two registrations with the same login raced past the check above.
-            throw LoginTaken();
+            // Two registrations with the same email raced past the check above.
+            throw EmailTaken();
         }
 
-        return new UserDto(user.Id, user.Login);
+        if (Email.Enabled)
+            await SendConfirmationAsync(user, ct);
+
+        return ToSignIn(user);
     }
 
-    public async Task<UserDto> LoginAsync(CredentialsRequest request, CancellationToken ct)
+    public async Task<SignIn> LoginAsync(LoginRequest request, CancellationToken ct)
     {
-        var normalized = (request.Login ?? "").Trim().ToUpperInvariant();
+        var normalized = AccountRules.Normalize(request.Email);
         var password = request.Password ?? "";
         if (normalized.Length == 0 || password.Length == 0)
-            throw AppException.Validation("credentials_required", "Login and password are required.");
+            throw AppException.Validation("credentials_required", "Email and password are required.");
 
-        var user = await db.Users.SingleOrDefaultAsync(u => u.NormalizedLogin == normalized, ct);
+        var user = await db.Users.SingleOrDefaultAsync(u => u.NormalizedEmail == normalized, ct);
         if (user is null)
         {
             hasher.VerifyHashedPassword(null!, DummyHash.Value, password);
@@ -81,14 +103,106 @@ public partial class AuthService(AppDbContext db, IPasswordHasher<User> hasher, 
             await db.SaveChangesAsync(ct);
         }
 
-        return new UserDto(user.Id, user.Login);
+        return ToSignIn(user);
     }
 
-    public async Task<UserDto?> FindAsync(int id, CancellationToken ct) =>
-        await db.Users.Where(u => u.Id == id).Select(u => new UserDto(u.Id, u.Login)).SingleOrDefaultAsync(ct);
+    public async Task<AccountDto?> FindAsync(int id, CancellationToken ct) =>
+        await db.Users.Where(u => u.Id == id)
+            .Select(u => new AccountDto(u.Id, u.Email, u.DisplayName, u.EmailConfirmedAt != null))
+            .SingleOrDefaultAsync(ct);
 
-    private static AppException LoginTaken() => AppException.Conflict("login_taken", "This login is already taken.", "login");
+    /// <summary>Current security stamp of a user, or null when the user no longer exists.</summary>
+    public Task<string?> StampAsync(int id, CancellationToken ct) =>
+        db.Users.Where(u => u.Id == id).Select(u => u.SecurityStamp).SingleOrDefaultAsync(ct);
+
+    public async Task ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken ct)
+    {
+        var token = await tokens.FindValidAsync(request.Token, TokenPurpose.EmailConfirmation, ct);
+        token.UsedAt = clock.GetUtcNow();
+        token.User.EmailConfirmedAt ??= clock.GetUtcNow();
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task ResendConfirmationAsync(int userId, CancellationToken ct)
+    {
+        RequireEmail();
+        var user = await db.Users.SingleAsync(u => u.Id == userId, ct);
+        if (user.EmailConfirmedAt is not null)
+            throw AppException.Conflict("already_confirmed", "The email is already confirmed.");
+        await SendConfirmationAsync(user, ct);
+    }
+
+    /// <summary>Always succeeds for a well-formed request, so it cannot be used to find out which emails are registered.</summary>
+    public async Task ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct)
+    {
+        RequireEmail();
+        var (_, normalized) = AccountRules.Email(request.Email);
+        var user = await db.Users.SingleOrDefaultAsync(u => u.NormalizedEmail == normalized, ct);
+        if (user is null)
+            return;
+
+        var token = await tokens.IssueAsync(user.Id, TokenPurpose.PasswordReset, ct);
+        var locale = request.Locale is null ? user.Locale : AccountRules.Locale(request.Locale);
+        outbox.Enqueue(EmailTemplates.PasswordReset(user.Email, user.DisplayName, Link("reset-password", token), locale));
+    }
+
+    public async Task<SignIn> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken ct)
+    {
+        var token = await tokens.FindValidAsync(request.Token, TokenPurpose.PasswordReset, ct);
+        var user = token.User;
+        AccountRules.Password(request.Password, user.Email);
+
+        token.UsedAt = clock.GetUtcNow();
+        // Following the emailed link proves the address belongs to the user.
+        user.EmailConfirmedAt ??= clock.GetUtcNow();
+        await SetPasswordAsync(user, request.Password!, ct);
+        return ToSignIn(user);
+    }
+
+    public async Task<SignIn> ChangePasswordAsync(int userId, ChangePasswordRequest request, CancellationToken ct)
+    {
+        var user = await db.Users.SingleAsync(u => u.Id == userId, ct);
+        if (hasher.VerifyHashedPassword(user, user.PasswordHash, request.CurrentPassword ?? "") == PasswordVerificationResult.Failed)
+            throw AppException.Validation("invalid_current_password", "The current password is wrong.", "currentPassword");
+        AccountRules.Password(request.NewPassword, user.Email, "newPassword");
+
+        await SetPasswordAsync(user, request.NewPassword!, ct);
+        return ToSignIn(user);
+    }
+
+    /// <summary>New hash and security stamp (signs out every other session), notification email.</summary>
+    private async Task SetPasswordAsync(User user, string password, CancellationToken ct)
+    {
+        user.PasswordHash = hasher.HashPassword(user, password);
+        user.SecurityStamp = User.NewStamp();
+        await db.SaveChangesAsync(ct);
+        await tokens.RevokeAsync(user.Id, TokenPurpose.PasswordReset, ct);
+
+        if (Email.Enabled)
+            outbox.Enqueue(EmailTemplates.PasswordChanged(user.Email, user.DisplayName, Link("forgot-password"), user.Locale));
+    }
+
+    private async Task SendConfirmationAsync(User user, CancellationToken ct)
+    {
+        var token = await tokens.IssueAsync(user.Id, TokenPurpose.EmailConfirmation, ct);
+        outbox.Enqueue(EmailTemplates.Confirmation(user.Email, user.DisplayName, Link("confirm-email", token), user.Locale));
+    }
+
+    private string Link(string path, string? token = null) =>
+        $"{appOptions.Value.PublicUrl.TrimEnd('/')}/{path}" + (token is null ? "" : $"?token={Uri.EscapeDataString(token)}");
+
+    private void RequireEmail()
+    {
+        if (!Email.Enabled)
+            throw AppException.Conflict("email_disabled", "Email is not configured on this server.");
+    }
+
+    private static SignIn ToSignIn(User user) =>
+        new(new AccountDto(user.Id, user.Email, user.DisplayName, user.EmailConfirmedAt is not null), user.SecurityStamp);
+
+    private static AppException EmailTaken() =>
+        AppException.Conflict("email_taken", "An account with this email already exists.", "email");
 
     private static AppException InvalidCredentials() =>
-        AppException.Unauthorized("invalid_credentials", "Wrong login or password.");
+        AppException.Unauthorized("invalid_credentials", "Wrong email or password.");
 }

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -12,6 +13,7 @@ using QandA.Api.Auth;
 using QandA.Api.Common;
 using QandA.Api.Data;
 using QandA.Api.Domain;
+using QandA.Api.Email;
 using QandA.Api.Surveys;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,7 +23,23 @@ builder.Services.AddDbContext<AppDbContext>(o => o.UseNpgsql(config.GetConnectio
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<ParticipationPolicy>();
 builder.Services.AddScoped<SurveyService>();
+
+builder.Services.Configure<AppOptions>(config.GetSection(AppOptions.Section));
+builder.Services.Configure<EmailOptions>(config.GetSection(EmailOptions.Section));
+if (config.GetSection(EmailOptions.Section).Get<EmailOptions>() is { Enabled: true })
+{
+    builder.Services.AddSingleton<ChannelEmailOutbox>();
+    builder.Services.AddSingleton<IEmailOutbox>(sp => sp.GetRequiredService<ChannelEmailOutbox>());
+    builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+    builder.Services.AddHostedService<EmailDispatcher>();
+}
+else
+{
+    builder.Services.AddSingleton<IEmailOutbox, DisabledEmailOutbox>();
+}
 
 builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)))
@@ -45,13 +63,17 @@ builder.Services
         // This is an API: answer with status codes instead of redirecting to a login page.
         o.Events.OnRedirectToLogin = ctx => { ctx.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
         o.Events.OnRedirectToAccessDenied = ctx => { ctx.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
-        // Reject cookies of users that no longer exist (e.g. after the database was reset).
+        // Reject cookies of deleted users and cookies issued before the last password change.
         o.Events.OnValidatePrincipal = async ctx =>
         {
-            var db = ctx.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
-            var idClaim = ctx.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(idClaim, out var id) || !await db.Users.AnyAsync(u => u.Id == id))
+            var auth = ctx.HttpContext.RequestServices.GetRequiredService<AuthService>();
+            var id = ctx.Principal?.FindUserId();
+            var stamp = id is null ? null : await auth.StampAsync(id.Value, ctx.HttpContext.RequestAborted);
+            if (stamp is null || stamp != ctx.Principal!.FindFirstValue(AuthController.StampClaim))
+            {
                 ctx.RejectPrincipal();
+                await ctx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            }
         };
     });
 builder.Services.AddAuthorization(o =>

@@ -28,28 +28,31 @@ describe('AuthView (register)', () => {
     const fetchMock = mockFetch();
     const { wrapper } = await mountView(AuthView, { mode: 'register' }, '/register');
 
-    await wrapper.find('#login').setValue('ab');
+    await wrapper.find('#email').setValue('not-an-email');
+    await wrapper.find('#display-name').setValue('A');
     await wrapper.find('#password').setValue('Secret123');
     await wrapper.find('#password-repeat').setValue('Secret124');
     await wrapper.find('form').trigger('submit');
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(wrapper.text()).toContain('Login must be 3–30 characters.');
+    expect(wrapper.text()).toContain('Enter a valid email address.');
+    expect(wrapper.text()).toContain('Name must be 2–50 characters.');
     expect(wrapper.text()).toContain('Passwords do not match');
   });
 
   it('shows the server error next to the field', async () => {
-    mockFetch(json(409, { code: 'login_taken', title: 'Taken', errors: { login: ['login_taken'] } }));
+    mockFetch(json(409, { code: 'email_taken', title: 'Taken', errors: { email: ['email_taken'] } }));
     const { wrapper } = await mountView(AuthView, { mode: 'register' }, '/register');
 
-    await wrapper.find('#login').setValue('alice');
+    await wrapper.find('#email').setValue('alice@example.com');
+    await wrapper.find('#display-name').setValue('Alice');
     await wrapper.find('#password').setValue('Secret123');
     await wrapper.find('#password-repeat').setValue('Secret123');
     await wrapper.find('form').trigger('submit');
     await flushPromises();
 
-    expect(wrapper.find('#login').attributes('aria-invalid')).toBe('true');
-    expect(wrapper.text()).toContain('This login is already taken.');
+    expect(wrapper.find('#email').attributes('aria-invalid')).toBe('true');
+    expect(wrapper.text()).toContain('An account with this email already exists.');
   });
 });
 

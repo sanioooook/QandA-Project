@@ -14,12 +14,16 @@ export const routes: RouteRecordRaw[] = [
   { path: '/', redirect: { name: 'active' } },
   { path: '/login', name: 'login', component: () => import('@/views/AuthView.vue'), props: { mode: 'login' }, meta: { guestOnly: true } },
   { path: '/register', name: 'register', component: () => import('@/views/AuthView.vue'), props: { mode: 'register' }, meta: { guestOnly: true } },
-  { path: '/surveys', name: 'active', component: () => import('@/views/SurveyListView.vue'), props: { scope: 'active' }, meta: { requiresAuth: true } },
+  { path: '/forgot-password', name: 'forgot-password', component: () => import('@/views/ForgotPasswordView.vue') },
+  { path: '/reset-password', name: 'reset-password', component: () => import('@/views/ResetPasswordView.vue') },
+  { path: '/confirm-email', name: 'confirm-email', component: () => import('@/views/ConfirmEmailView.vue') },
+  // Published surveys and results are public; voting asks for an account.
+  { path: '/surveys', name: 'active', component: () => import('@/views/SurveyListView.vue'), props: { scope: 'active' } },
   { path: '/my', name: 'mine', component: () => import('@/views/SurveyListView.vue'), props: { scope: 'mine' }, meta: { requiresAuth: true } },
   { path: '/voted', name: 'voted', component: () => import('@/views/SurveyListView.vue'), props: { scope: 'voted' }, meta: { requiresAuth: true } },
   { path: '/surveys/new', name: 'create', component: () => import('@/views/SurveyEditView.vue'), meta: { requiresAuth: true } },
   { path: '/surveys/:id/edit', name: 'edit', component: () => import('@/views/SurveyEditView.vue'), props: true, meta: { requiresAuth: true } },
-  { path: '/surveys/:id', name: 'survey', component: () => import('@/views/SurveyView.vue'), props: true, meta: { requiresAuth: true } },
+  { path: '/surveys/:id', name: 'survey', component: () => import('@/views/SurveyView.vue'), props: true },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') },
 ];
 

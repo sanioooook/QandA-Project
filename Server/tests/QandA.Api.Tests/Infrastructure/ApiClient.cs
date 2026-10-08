@@ -17,17 +17,22 @@ public class ApiClient(HttpClient http)
 
     public HttpClient Http { get; } = http;
 
-    public static string UniqueLogin(string prefix = "user") => $"{prefix}_{Guid.NewGuid():N}"[..20];
+    public static string UniqueEmail(string prefix = "user") => $"{prefix}.{Guid.NewGuid():N}@example.com";
 
     public const string Password = "Secret123";
 
-    public static async Task<ApiClient> SignedUpAsync(ApiFactory factory, string? login = null)
+    public static object Registration(string? email = null, string name = "Test User", string password = Password, string? locale = null) =>
+        new { email = email ?? UniqueEmail(), displayName = name, password, locale };
+
+    public static async Task<ApiClient> SignedUpAsync(ApiFactory factory, string? email = null, string name = "Test User")
     {
         var client = new ApiClient(factory.CreateClient());
-        var response = await client.PostAsync("/api/auth/register", new { login = login ?? UniqueLogin(), password = Password });
+        var response = await client.PostAsync("/api/auth/register", Registration(email, name));
         await response.ShouldBe(HttpStatusCode.Created);
         return client;
     }
+
+    public static ApiClient Anonymous(ApiFactory factory) => new(factory.CreateClient());
 
     public Task<HttpResponseMessage> GetAsync(string url) => Http.GetAsync(url, Ct);
 
@@ -67,7 +72,7 @@ public class ApiClient(HttpClient http)
 
     public Task<SurveyDetails> GetSurveyAsync(Guid id) => GetJsonAsync<SurveyDetails>($"/api/surveys/{id}");
 
-    public Task<UserDto> MeAsync() => GetJsonAsync<UserDto>("/api/auth/me");
+    public Task<AccountDto> MeAsync() => GetJsonAsync<AccountDto>("/api/auth/me");
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 }

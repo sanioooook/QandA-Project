@@ -12,24 +12,30 @@ namespace QandA.Api.Auth;
 [Route("api/auth")]
 public class AuthController(AuthService auth) : ControllerBase
 {
+    public const string StampClaim = "qanda:stamp";
+
+    [HttpGet("config")]
+    [AllowAnonymous]
+    public AuthConfigDto Config() => auth.Config();
+
     [HttpPost("register")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimits.Auth)]
-    public async Task<ActionResult<UserDto>> Register(CredentialsRequest request, CancellationToken ct)
+    public async Task<ActionResult<AccountDto>> Register(RegisterRequest request, CancellationToken ct)
     {
-        var user = await auth.RegisterAsync(request, ct);
-        await SignInAsync(user);
-        return CreatedAtAction(nameof(Me), user);
+        var result = await auth.RegisterAsync(request, ct);
+        await SignInAsync(result);
+        return CreatedAtAction(nameof(Me), result.Account);
     }
 
     [HttpPost("login")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimits.Auth)]
-    public async Task<ActionResult<UserDto>> Login(CredentialsRequest request, CancellationToken ct)
+    public async Task<ActionResult<AccountDto>> Login(LoginRequest request, CancellationToken ct)
     {
-        var user = await auth.LoginAsync(request, ct);
-        await SignInAsync(user);
-        return user;
+        var result = await auth.LoginAsync(request, ct);
+        await SignInAsync(result);
+        return result.Account;
     }
 
     [HttpPost("logout")]
@@ -41,13 +47,59 @@ public class AuthController(AuthService auth) : ControllerBase
     }
 
     [HttpGet("me")]
-    public async Task<ActionResult<UserDto>> Me(CancellationToken ct) =>
-        await auth.FindAsync(User.GetUserId(), ct) is { } user ? user : Unauthorized();
+    public async Task<ActionResult<AccountDto>> Me(CancellationToken ct) =>
+        await auth.FindAsync(User.GetUserId(), ct) is { } account ? account : Unauthorized();
 
-    private Task SignInAsync(UserDto user)
+    [HttpPost("confirm-email")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimits.Auth)]
+    public async Task<IActionResult> ConfirmEmail(ConfirmEmailRequest request, CancellationToken ct)
+    {
+        await auth.ConfirmEmailAsync(request, ct);
+        return NoContent();
+    }
+
+    [HttpPost("resend-confirmation")]
+    [EnableRateLimiting(RateLimits.Auth)]
+    public async Task<IActionResult> ResendConfirmation(CancellationToken ct)
+    {
+        await auth.ResendConfirmationAsync(User.GetUserId(), ct);
+        return NoContent();
+    }
+
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimits.Auth)]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request, CancellationToken ct)
+    {
+        await auth.ForgotPasswordAsync(request, ct);
+        return NoContent();
+    }
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimits.Auth)]
+    public async Task<ActionResult<AccountDto>> ResetPassword(ResetPasswordRequest request, CancellationToken ct)
+    {
+        var result = await auth.ResetPasswordAsync(request, ct);
+        await SignInAsync(result);
+        return result.Account;
+    }
+
+    /// <summary>Other sessions are signed out by the new security stamp; this one gets a fresh cookie.</summary>
+    [HttpPost("change-password")]
+    [EnableRateLimiting(RateLimits.Auth)]
+    public async Task<ActionResult<AccountDto>> ChangePassword(ChangePasswordRequest request, CancellationToken ct)
+    {
+        var result = await auth.ChangePasswordAsync(User.GetUserId(), request, ct);
+        await SignInAsync(result);
+        return result.Account;
+    }
+
+    private Task SignInAsync(SignIn result)
     {
         var identity = new ClaimsIdentity(
-            [new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()), new Claim(ClaimTypes.Name, user.Login)],
+            [new Claim(ClaimTypes.NameIdentifier, result.Account.Id.ToString()), new Claim(StampClaim, result.SecurityStamp)],
             CookieAuthenticationDefaults.AuthenticationScheme);
         return HttpContext.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,

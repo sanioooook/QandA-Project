@@ -9,14 +9,27 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Survey> Surveys => Set<Survey>();
     public DbSet<SurveyOption> Options => Set<SurveyOption>();
     public DbSet<Vote> Votes => Set<Vote>();
+    public DbSet<UserToken> UserTokens => Set<UserToken>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<User>(e =>
         {
-            e.Property(u => u.Login).HasMaxLength(Limits.LoginMax);
-            e.Property(u => u.NormalizedLogin).HasMaxLength(Limits.LoginMax);
-            e.HasIndex(u => u.NormalizedLogin).IsUnique();
+            e.Property(u => u.Email).HasMaxLength(Limits.EmailMax);
+            e.Property(u => u.NormalizedEmail).HasMaxLength(Limits.EmailMax);
+            e.HasIndex(u => u.NormalizedEmail).IsUnique();
+            e.Property(u => u.DisplayName).HasMaxLength(Limits.DisplayNameMax);
+            e.Property(u => u.SecurityStamp).HasMaxLength(32);
+            e.Property(u => u.Locale).HasMaxLength(5);
+        });
+
+        b.Entity<UserToken>(e =>
+        {
+            e.Property(t => t.TokenHash).HasMaxLength(64);
+            e.HasIndex(t => t.TokenHash).IsUnique();
+            e.HasIndex(t => new { t.UserId, t.Purpose });
+            e.Property(t => t.Purpose).HasConversion<string>().HasMaxLength(32);
+            e.HasOne(t => t.User).WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<Survey>(e =>

@@ -6,7 +6,7 @@ namespace QandA.Api.Tests;
 
 public class SurveyTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
-    private Task<ApiClient> NewUserAsync() => ApiClient.SignedUpAsync(factory);
+    private Task<ApiClient> NewUserAsync(string name = "Test User") => ApiClient.SignedUpAsync(factory, name: name);
 
     private static Task<Paged<SurveySummary>> ListAsync(ApiClient client, string query = "scope=active") =>
         client.GetJsonAsync<Paged<SurveySummary>>($"/api/surveys?{query}&pageSize=50");
@@ -48,7 +48,7 @@ public class SurveyTests(ApiFactory factory) : IClassFixture<ApiFactory>
     {
         var author = await NewUserAsync();
         var voter = await NewUserAsync();
-        var voterLogin = (await voter.MeAsync()).Login;
+        var voterName = (await voter.MeAsync()).DisplayName;
         var survey = await author.CreatePublishedAsync();
         await (await voter.PutAsync($"/api/surveys/{survey.Id}/votes", new { optionIds = new[] { survey.Options[0].Id } })).ShouldBe(HttpStatusCode.OK);
 
@@ -57,7 +57,7 @@ public class SurveyTests(ApiFactory factory) : IClassFixture<ApiFactory>
 
         Assert.All(asVoter.Options, o => Assert.Null(o.Voters));
         Assert.Equal(1, asVoter.Options[0].Votes);
-        Assert.Equal(voterLogin, Assert.Single(asAuthor.Options[0].Voters!).Login);
+        Assert.Equal(voterName, Assert.Single(asAuthor.Options[0].Voters!).Name);
     }
 
     [Fact]
@@ -250,7 +250,7 @@ public class SurveyTests(ApiFactory factory) : IClassFixture<ApiFactory>
     {
         var author = await NewUserAsync();
         var participant = await NewUserAsync();
-        var participantLogin = (await participant.MeAsync()).Login;
+        var participantName = (await participant.MeAsync()).DisplayName;
         var survey = await author.CreatePublishedAsync(allowOptions: true, maxOptions: 1);
 
         var duplicate = await participant.PostAsync($"/api/surveys/{survey.Id}/options", new { text = " park " });
@@ -260,7 +260,7 @@ public class SurveyTests(ApiFactory factory) : IClassFixture<ApiFactory>
 
         await duplicate.ShouldFailWith(HttpStatusCode.Conflict, "option_duplicate");
         var zoo = added.Options.Single(o => o.Text == "Zoo");
-        Assert.Equal(participantLogin, zoo.AddedBy);
+        Assert.Equal(participantName, zoo.AddedBy);
         Assert.Equal([zoo.Id], added.MyVotes);
         Assert.False(added.CanAddOption);
         await overLimit.ShouldFailWith(HttpStatusCode.Conflict, "option_limit");
@@ -293,6 +293,44 @@ public class SurveyTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Equal(3, page.Total);
         Assert.Single(page.Items);
         Assert.Equal(50, capped.PageSize);
+    }
+
+    [Fact]
+    public async Task Guests_see_published_surveys_and_results_but_not_voters_or_emails()
+    {
+        var author = await NewUserAsync("Alice");
+        var voter = await NewUserAsync();
+        var survey = await author.CreatePublishedAsync();
+        await voter.PutAsync($"/api/surveys/{survey.Id}/votes", new { optionIds = new[] { survey.Options[1].Id } });
+        var guest = ApiClient.Anonymous(factory);
+
+        var listed = await ListAsync(guest);
+        var response = await guest.GetAsync($"/api/surveys/{survey.Id}");
+        var asGuest = await response.ReadAs<SurveyDetails>();
+
+        Assert.Contains(listed.Items, s => s.Id == survey.Id && !s.HasVoted);
+        Assert.Equal("Alice", asGuest.Author.Name);
+        Assert.Equal(1, asGuest.Options[1].Votes);
+        Assert.All(asGuest.Options, o => Assert.Null(o.Voters));
+        Assert.False(asGuest.CanVote);
+        Assert.False(asGuest.CanAddOption);
+        Assert.Empty(asGuest.MyVotes);
+        Assert.DoesNotContain("@example.com", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Guests_cannot_vote_add_options_or_see_drafts()
+    {
+        var author = await NewUserAsync();
+        var survey = await author.CreatePublishedAsync(allowOptions: true);
+        var draft = await author.CreateSurveyAsync(new { title = "Draft", options = new[] { "A", "B" } });
+        var guest = ApiClient.Anonymous(factory);
+
+        await (await guest.PutAsync($"/api/surveys/{survey.Id}/votes", new { optionIds = new[] { survey.Options[0].Id } }))
+            .ShouldBe(HttpStatusCode.Unauthorized);
+        await (await guest.PostAsync($"/api/surveys/{survey.Id}/options", new { text = "Zoo" })).ShouldBe(HttpStatusCode.Unauthorized);
+        await (await guest.PostAsync("/api/surveys", new { title = "Q", options = new[] { "A", "B" } })).ShouldBe(HttpStatusCode.Unauthorized);
+        await (await guest.GetAsync($"/api/surveys/{draft.Id}")).ShouldFailWith(HttpStatusCode.NotFound, "not_found");
     }
 
     [Fact]

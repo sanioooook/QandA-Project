@@ -5,30 +5,55 @@ using QandA.Api.Tests.Infrastructure;
 
 namespace QandA.Api.Tests;
 
+/// <summary>Accounts with email delivery switched off (the default setup).</summary>
 public class AuthTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
-    private ApiClient Anonymous() => new(factory.CreateClient());
+    private ApiClient Anonymous() => ApiClient.Anonymous(factory);
 
     [Fact]
     public async Task Register_signs_the_user_in()
     {
-        var login = ApiClient.UniqueLogin("alice");
+        var email = ApiClient.UniqueEmail("alice");
         var client = Anonymous();
 
-        var created = await (await client.PostAsync("/api/auth/register", new { login, password = ApiClient.Password }))
-            .ReadAs<UserDto>(HttpStatusCode.Created);
+        var created = await (await client.PostAsync("/api/auth/register", ApiClient.Registration(email, "  Alice   Smith ")))
+            .ReadAs<AccountDto>(HttpStatusCode.Created);
 
-        Assert.Equal(login, created.Login);
+        Assert.Equal(email, created.Email);
+        Assert.Equal("Alice Smith", created.DisplayName);
+        Assert.False(created.EmailConfirmed);
         Assert.Equal(created, await client.MeAsync());
+    }
+
+    [Fact]
+    public async Task Without_email_delivery_nothing_needs_confirming()
+    {
+        var config = await Anonymous().GetJsonAsync<AuthConfigDto>("/api/auth/config");
+        var client = await ApiClient.SignedUpAsync(factory);
+
+        var survey = await client.CreatePublishedAsync();
+
+        Assert.Equal(new AuthConfigDto(EmailEnabled: false, ConfirmationRequired: false), config);
+        Assert.True(survey.CanVote);
+    }
+
+    [Fact]
+    public async Task Email_only_flows_are_unavailable_without_email_delivery()
+    {
+        var client = await ApiClient.SignedUpAsync(factory);
+
+        await (await Anonymous().PostAsync("/api/auth/forgot-password", new { email = ApiClient.UniqueEmail() }))
+            .ShouldFailWith(HttpStatusCode.Conflict, "email_disabled");
+        await (await client.PostAsync("/api/auth/resend-confirmation")).ShouldFailWith(HttpStatusCode.Conflict, "email_disabled");
     }
 
     [Fact]
     public async Task Password_is_stored_as_a_hash_not_as_plain_text()
     {
-        var login = ApiClient.UniqueLogin();
-        await ApiClient.SignedUpAsync(factory, login);
+        var email = ApiClient.UniqueEmail();
+        await ApiClient.SignedUpAsync(factory, email);
 
-        var hash = await factory.WithDbAsync(db => db.Users.Where(u => u.Login == login).Select(u => u.PasswordHash).SingleAsync());
+        var hash = await factory.WithDbAsync(db => db.Users.Where(u => u.Email == email).Select(u => u.PasswordHash).SingleAsync());
 
         Assert.DoesNotContain(ApiClient.Password, hash);
         Assert.True(hash.Length > 40);
@@ -37,7 +62,7 @@ public class AuthTests(ApiFactory factory) : IClassFixture<ApiFactory>
     [Fact]
     public async Task Auth_cookie_is_http_only_and_same_site()
     {
-        var response = await Anonymous().PostAsync("/api/auth/register", new { login = ApiClient.UniqueLogin(), password = ApiClient.Password });
+        var response = await Anonymous().PostAsync("/api/auth/register", ApiClient.Registration());
 
         var cookie = Assert.Single(response.Headers.GetValues("Set-Cookie"), c => c.StartsWith("qanda.auth="));
         Assert.Contains("httponly", cookie, StringComparison.OrdinalIgnoreCase);
@@ -45,65 +70,66 @@ public class AuthTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task Register_rejects_taken_login_ignoring_case()
+    public async Task Register_rejects_taken_email_ignoring_case()
     {
-        var login = ApiClient.UniqueLogin("bob");
-        await ApiClient.SignedUpAsync(factory, login);
+        var email = ApiClient.UniqueEmail("bob");
+        await ApiClient.SignedUpAsync(factory, email);
 
-        var response = await Anonymous().PostAsync("/api/auth/register", new { login = login.ToUpperInvariant(), password = ApiClient.Password });
+        var response = await Anonymous().PostAsync("/api/auth/register", ApiClient.Registration(email.ToUpperInvariant()));
 
-        await response.ShouldFailWith(HttpStatusCode.Conflict, "login_taken");
+        await response.ShouldFailWith(HttpStatusCode.Conflict, "email_taken");
     }
 
     [Theory]
-    [InlineData("ab", "Secret123", "login_length")]
-    [InlineData("this_login_is_way_too_long_for_us", "Secret123", "login_length")]
-    [InlineData("bad login!", "Secret123", "login_chars")]
-    [InlineData("валідний", "Secret123", "login_chars")]
-    [InlineData("validlogin", "Short1", "password_length")]
-    [InlineData("validlogin", "onlyletters", "password_weak")]
-    [InlineData("validlogin", "1234567890", "password_weak")]
-    [InlineData("Login12345", "login12345", "password_equals_login")]
-    [InlineData(null, "Secret123", "login_length")]
-    [InlineData("validlogin", null, "password_length")]
-    public async Task Register_rejects_invalid_credentials(string? login, string? password, string code)
+    [InlineData("not-an-email", "Alice", "Secret123", "email_invalid")]
+    [InlineData("two@@example.com", "Alice", "Secret123", "email_invalid")]
+    [InlineData("no-domain-dot@example", "Alice", "Secret123", "email_invalid")]
+    [InlineData("spaces in@example.com", "Alice", "Secret123", "email_invalid")]
+    [InlineData(null, "Alice", "Secret123", "email_invalid")]
+    [InlineData("ok@example.com", "A", "Secret123", "name_length")]
+    [InlineData("ok@example.com", "   ", "Secret123", "name_length")]
+    [InlineData("ok@example.com", "Alice", "Short1", "password_length")]
+    [InlineData("ok@example.com", "Alice", "onlyletters", "password_weak")]
+    [InlineData("ok@example.com", "Alice", "1234567890", "password_weak")]
+    [InlineData("alice2026@example.com", "Alice", "ALICE2026", "password_equals_email")]
+    public async Task Register_rejects_invalid_input(string? email, string name, string password, string code)
     {
-        var response = await Anonymous().PostAsync("/api/auth/register", new { login, password });
+        var response = await Anonymous().PostAsync("/api/auth/register", new { email, displayName = name, password });
 
         await response.ShouldFailWith(HttpStatusCode.BadRequest, code);
     }
 
     [Fact]
-    public async Task Login_ignores_case_and_surrounding_spaces_of_the_login()
+    public async Task Login_ignores_case_and_surrounding_spaces_of_the_email()
     {
-        var login = ApiClient.UniqueLogin("carol");
-        await ApiClient.SignedUpAsync(factory, login);
+        var email = ApiClient.UniqueEmail("carol");
+        await ApiClient.SignedUpAsync(factory, email);
         var client = Anonymous();
 
-        var user = await (await client.PostAsync("/api/auth/login", new { login = $"  {login.ToUpperInvariant()} ", password = ApiClient.Password }))
-            .ReadAs<UserDto>();
+        var account = await (await client.PostAsync("/api/auth/login", new { email = $"  {email.ToUpperInvariant()} ", password = ApiClient.Password }))
+            .ReadAs<AccountDto>();
 
-        Assert.Equal(login, user.Login);
-        Assert.Equal(login, (await client.MeAsync()).Login);
+        Assert.Equal(email, account.Email);
+        Assert.Equal(email, (await client.MeAsync()).Email);
     }
 
     [Fact]
-    public async Task Login_with_wrong_password_and_unknown_login_fail_the_same_way()
+    public async Task Login_with_wrong_password_and_unknown_email_fail_the_same_way()
     {
-        var login = ApiClient.UniqueLogin();
-        await ApiClient.SignedUpAsync(factory, login);
+        var email = ApiClient.UniqueEmail();
+        await ApiClient.SignedUpAsync(factory, email);
 
-        var wrongPassword = await Anonymous().PostAsync("/api/auth/login", new { login, password = "Wrong12345" });
-        var unknownLogin = await Anonymous().PostAsync("/api/auth/login", new { login = "nobody_here", password = ApiClient.Password });
+        var wrongPassword = await Anonymous().PostAsync("/api/auth/login", new { email, password = "Wrong12345" });
+        var unknownEmail = await Anonymous().PostAsync("/api/auth/login", new { email = ApiClient.UniqueEmail(), password = ApiClient.Password });
 
         await wrongPassword.ShouldFailWith(HttpStatusCode.Unauthorized, "invalid_credentials");
-        await unknownLogin.ShouldFailWith(HttpStatusCode.Unauthorized, "invalid_credentials");
+        await unknownEmail.ShouldFailWith(HttpStatusCode.Unauthorized, "invalid_credentials");
     }
 
     [Fact]
     public async Task Login_without_credentials_is_a_validation_error()
     {
-        var response = await Anonymous().PostAsync("/api/auth/login", new { login = "", password = "" });
+        var response = await Anonymous().PostAsync("/api/auth/login", new { email = "", password = "" });
 
         await response.ShouldFailWith(HttpStatusCode.BadRequest, "credentials_required");
     }
@@ -118,11 +144,40 @@ public class AuthTests(ApiFactory factory) : IClassFixture<ApiFactory>
         await (await client.GetAsync("/api/auth/me")).ShouldBe(HttpStatusCode.Unauthorized);
     }
 
+    [Fact]
+    public async Task Changing_the_password_keeps_this_session_and_ends_the_others()
+    {
+        var email = ApiClient.UniqueEmail();
+        var thisDevice = await ApiClient.SignedUpAsync(factory, email);
+        var otherDevice = Anonymous();
+        await (await otherDevice.PostAsync("/api/auth/login", new { email, password = ApiClient.Password })).ShouldBe(HttpStatusCode.OK);
+
+        await (await thisDevice.PostAsync("/api/auth/change-password", new { currentPassword = ApiClient.Password, newPassword = "NewSecret456" }))
+            .ShouldBe(HttpStatusCode.OK);
+
+        await (await thisDevice.GetAsync("/api/auth/me")).ShouldBe(HttpStatusCode.OK);
+        await (await otherDevice.GetAsync("/api/auth/me")).ShouldBe(HttpStatusCode.Unauthorized);
+        await (await Anonymous().PostAsync("/api/auth/login", new { email, password = ApiClient.Password }))
+            .ShouldFailWith(HttpStatusCode.Unauthorized, "invalid_credentials");
+        await (await Anonymous().PostAsync("/api/auth/login", new { email, password = "NewSecret456" })).ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Changing_the_password_needs_the_current_one_and_a_valid_new_one()
+    {
+        var client = await ApiClient.SignedUpAsync(factory);
+
+        await (await client.PostAsync("/api/auth/change-password", new { currentPassword = "Wrong12345", newPassword = "NewSecret456" }))
+            .ShouldFailWith(HttpStatusCode.BadRequest, "invalid_current_password");
+        await (await client.PostAsync("/api/auth/change-password", new { currentPassword = ApiClient.Password, newPassword = "weak" }))
+            .ShouldFailWith(HttpStatusCode.BadRequest, "password_length");
+    }
+
     [Theory]
     [InlineData("/api/auth/me")]
-    [InlineData("/api/surveys")]
-    [InlineData("/api/surveys/00000000-0000-0000-0000-000000000001")]
-    public async Task Protected_endpoints_return_401_without_redirecting(string url)
+    [InlineData("/api/surveys?scope=mine")]
+    [InlineData("/api/surveys?scope=voted")]
+    public async Task Personal_endpoints_return_401_to_guests_without_redirecting(string url)
     {
         var response = await Anonymous().GetAsync(url);
 
@@ -145,11 +200,12 @@ public class AuthRateLimitTests(ThrottledApiFactory factory) : IClassFixture<Thr
     [Fact]
     public async Task Too_many_login_attempts_are_throttled()
     {
-        var client = new ApiClient(factory.CreateClient());
+        var client = ApiClient.Anonymous(factory);
+        var attempt = new { email = "someone@example.com", password = "Guess1234" };
         for (var i = 0; i < ThrottledApiFactory.Limit; i++)
-            await (await client.PostAsync("/api/auth/login", new { login = "someone", password = "Guess1234" })).ShouldBe(HttpStatusCode.Unauthorized);
+            await (await client.PostAsync("/api/auth/login", attempt)).ShouldBe(HttpStatusCode.Unauthorized);
 
-        var throttled = await client.PostAsync("/api/auth/login", new { login = "someone", password = "Guess1234" });
+        var throttled = await client.PostAsync("/api/auth/login", attempt);
 
         await throttled.ShouldBe(HttpStatusCode.TooManyRequests);
     }

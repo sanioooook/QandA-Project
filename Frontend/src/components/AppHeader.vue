@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
+import { computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import PrefsControls from '@/components/PrefsControls.vue';
 import { useAuthStore } from '@/stores/auth';
 
 const { t } = useI18n();
 const router = useRouter();
+const route = useRoute();
+// From a survey page, signing in should bring the guest back to that survey.
+const loginQuery = computed(() => (route.name === 'survey' ? { redirect: route.fullPath } : {}));
 const auth = useAuthStore();
 const { user, isLoggedIn } = storeToRefs(auth);
 
@@ -25,10 +29,12 @@ async function logout() {
         <span>{{ t('app.name') }}</span>
       </RouterLink>
 
-      <nav v-if="isLoggedIn" class="nav" aria-label="Main">
+      <nav class="nav" aria-label="Main">
         <RouterLink :to="{ name: 'active' }">{{ t('nav.active') }}</RouterLink>
-        <RouterLink :to="{ name: 'mine' }">{{ t('nav.mine') }}</RouterLink>
-        <RouterLink :to="{ name: 'voted' }">{{ t('nav.voted') }}</RouterLink>
+        <template v-if="isLoggedIn">
+          <RouterLink :to="{ name: 'mine' }">{{ t('nav.mine') }}</RouterLink>
+          <RouterLink :to="{ name: 'voted' }">{{ t('nav.voted') }}</RouterLink>
+        </template>
       </nav>
 
       <div class="actions">
@@ -38,13 +44,17 @@ async function logout() {
             <AppIcon name="plus" :size="16" />
             <span>{{ t('nav.newSurvey') }}</span>
           </RouterLink>
-          <span class="user" :title="t('nav.signedInAs', { login: user?.login })">
-            <span class="avatar" aria-hidden="true">{{ user?.login.charAt(0).toUpperCase() }}</span>
-            <span class="login">{{ user?.login }}</span>
+          <span class="user" :title="t('nav.signedInAs', { name: user?.displayName, email: user?.email })">
+            <span class="avatar" aria-hidden="true">{{ user?.displayName.charAt(0).toUpperCase() }}</span>
+            <span class="login">{{ user?.displayName }}</span>
           </span>
           <button type="button" class="icon-btn" :title="t('nav.logout')" :aria-label="t('nav.logout')" @click="logout">
             <AppIcon name="logout" />
           </button>
+        </template>
+        <template v-else>
+          <RouterLink :to="{ name: 'login', query: loginQuery }" class="btn btn-sm btn-ghost">{{ t('nav.login') }}</RouterLink>
+          <RouterLink :to="{ name: 'register', query: loginQuery }" class="btn btn-sm btn-primary">{{ t('nav.register') }}</RouterLink>
         </template>
       </div>
     </div>

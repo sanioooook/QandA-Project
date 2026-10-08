@@ -24,7 +24,7 @@ const status = computed(() => effectiveStatus(props.survey.status, props.survey.
     </div>
     <h2 class="title">{{ survey.title }}</h2>
     <p class="meta muted">
-      {{ t('survey.by', { author: survey.author.login }) }} ·
+      {{ t('survey.by', { author: survey.author.name }) }} ·
       {{ survey.publishedAt ? t('survey.published', { date: date(survey.publishedAt) }) : t('survey.created', { date: date(survey.createdAt) }) }}
     </p>
     <div class="stats muted">

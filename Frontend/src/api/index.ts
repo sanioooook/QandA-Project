@@ -1,11 +1,20 @@
 import { http } from './http';
-import type { Credentials, Paged, SurveyDetails, SurveyInput, SurveyScope, SurveyStatus, SurveySummary, User } from './types';
+import type {
+  Account, AuthConfig, Credentials, Paged, Registration, SurveyDetails, SurveyInput, SurveyScope, SurveyStatus, SurveySummary,
+} from './types';
 
 export const authApi = {
-  me: () => http.get<User>('/api/auth/me'),
-  login: (credentials: Credentials) => http.post<User>('/api/auth/login', credentials),
-  register: (credentials: Credentials) => http.post<User>('/api/auth/register', credentials),
+  config: () => http.get<AuthConfig>('/api/auth/config'),
+  me: () => http.get<Account>('/api/auth/me'),
+  login: (credentials: Credentials) => http.post<Account>('/api/auth/login', credentials),
+  register: (registration: Registration) => http.post<Account>('/api/auth/register', registration),
   logout: () => http.post<void>('/api/auth/logout'),
+  confirmEmail: (token: string) => http.post<void>('/api/auth/confirm-email', { token }),
+  resendConfirmation: () => http.post<void>('/api/auth/resend-confirmation'),
+  forgotPassword: (email: string, locale: string) => http.post<void>('/api/auth/forgot-password', { email, locale }),
+  resetPassword: (token: string, password: string) => http.post<Account>('/api/auth/reset-password', { token, password }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    http.post<Account>('/api/auth/change-password', { currentPassword, newPassword }),
 };
 
 export interface ListQuery {

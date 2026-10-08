@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using QandA.Api.Common;
 using QandA.Api.Domain;
@@ -8,17 +9,21 @@ namespace QandA.Api.Surveys;
 [Route("api/surveys")]
 public class SurveysController(SurveyService surveys) : ControllerBase
 {
+    /// <summary>Guests may list active surveys; "mine" and "voted" need a session.</summary>
     [HttpGet]
+    [AllowAnonymous]
     public Task<Paged<SurveySummary>> List(
         SurveyScope scope = SurveyScope.Active,
         SurveyStatus? status = null,
         int page = 1,
         int pageSize = Limits.PageSizeDefault,
         CancellationToken ct = default) =>
-        surveys.ListAsync(User.GetUserId(), scope, status, page, pageSize, ct);
+        surveys.ListAsync(User.FindUserId(), scope, status, page, pageSize, ct);
 
+    /// <summary>Published surveys and their results are public; voting is not.</summary>
     [HttpGet("{id:guid}")]
-    public Task<SurveyDetails> Get(Guid id, CancellationToken ct) => surveys.GetAsync(id, User.GetUserId(), ct);
+    [AllowAnonymous]
+    public Task<SurveyDetails> Get(Guid id, CancellationToken ct) => surveys.GetAsync(id, User.FindUserId(), ct);
 
     [HttpPost]
     public async Task<ActionResult<SurveyDetails>> Create(SurveyInput input, CancellationToken ct)

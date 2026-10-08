@@ -3,8 +3,9 @@ namespace QandA.Api.Domain;
 /// <summary>Validation limits shared by the database schema and request validation.</summary>
 public static class Limits
 {
-    public const int LoginMin = 3;
-    public const int LoginMax = 30;
+    public const int EmailMax = 254;
+    public const int DisplayNameMin = 2;
+    public const int DisplayNameMax = 50;
     public const int PasswordMin = 8;
     public const int PasswordMax = 128;
 

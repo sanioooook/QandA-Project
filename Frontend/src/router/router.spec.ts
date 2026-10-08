@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryHistory, createRouter } from 'vue-router';
-import { json, mockFetch } from '@/test/fixtures';
+import { account, mockApi, reply } from '@/test/fixtures';
 import { authGuard, routes, safeRedirect } from './index';
 
 function makeRouter() {
@@ -14,18 +14,30 @@ describe('router guard', () => {
   beforeEach(() => setActivePinia(createPinia()));
   afterEach(() => vi.unstubAllGlobals());
 
-  it('sends guests from a shared survey link to login and keeps the link', async () => {
-    mockFetch(json(401));
+  const guest = () => mockApi({ 'GET /api/auth/me': reply(401) });
+
+  it('lets guests open a shared survey link and the active list', async () => {
+    guest();
     const router = makeRouter();
 
     await router.push('/surveys/abc');
+    expect(router.currentRoute.value.name).toBe('survey');
+    await router.push('/surveys');
+    expect(router.currentRoute.value.name).toBe('active');
+  });
+
+  it.each(['/my', '/voted', '/surveys/new', '/surveys/abc/edit'])('sends guests from %s to login and keeps the target', async (path) => {
+    guest();
+    const router = makeRouter();
+
+    await router.push(path);
 
     expect(router.currentRoute.value.name).toBe('login');
-    expect(router.currentRoute.value.query.redirect).toBe('/surveys/abc');
+    expect(router.currentRoute.value.query.redirect).toBe(path);
   });
 
   it('sends signed-in users away from the login page to the redirect target', async () => {
-    mockFetch(json(200, { id: 1, login: 'alice' }));
+    mockApi({ 'GET /api/auth/me': reply(200, account()) });
     const router = makeRouter();
 
     await router.push('/login?redirect=/my');
@@ -34,7 +46,7 @@ describe('router guard', () => {
   });
 
   it('lets guests open the registration page', async () => {
-    mockFetch(json(401));
+    guest();
     const router = makeRouter();
 
     await router.push('/register');
@@ -43,7 +55,7 @@ describe('router guard', () => {
   });
 
   it('shows not-found for unknown paths without asking for a login', async () => {
-    mockFetch(json(401));
+    guest();
     const router = makeRouter();
 
     await router.push('/no/such/page');

@@ -1,8 +1,22 @@
 // Mirrors the DTOs of Server/src/QandA.Api (camelCase JSON, enums as camelCase strings).
 
-export interface User {
+/** The signed-in user's own account. */
+export interface Account {
   id: number;
-  login: string;
+  email: string;
+  displayName: string;
+  emailConfirmed: boolean;
+}
+
+/** How other users are shown (survey author, voter); never contains the email. */
+export interface PublicUser {
+  id: number;
+  name: string;
+}
+
+export interface AuthConfig {
+  emailEnabled: boolean;
+  confirmationRequired: boolean;
 }
 
 export type SurveyStatus = 'draft' | 'active' | 'closed';
@@ -18,7 +32,7 @@ export interface Paged<T> {
 export interface SurveySummary {
   id: string;
   title: string;
-  author: User;
+  author: PublicUser;
   createdAt: string;
   publishedAt: string | null;
   deadline: string | null;
@@ -30,7 +44,7 @@ export interface SurveySummary {
 
 export interface Voter {
   userId: number;
-  login: string;
+  name: string;
   votedAt: string;
 }
 
@@ -47,7 +61,7 @@ export interface SurveyDetails {
   id: string;
   title: string;
   description: string | null;
-  author: User;
+  author: PublicUser;
   createdAt: string;
   publishedAt: string | null;
   deadline: string | null;
@@ -77,6 +91,11 @@ export interface SurveyInput {
 }
 
 export interface Credentials {
-  login: string;
+  email: string;
   password: string;
+}
+
+export interface Registration extends Credentials {
+  displayName: string;
+  locale: string;
 }

@@ -1,7 +1,8 @@
 // Mirrors Server/src/QandA.Api/Domain/Limits.cs, used for client-side validation and error texts.
 export const LIMITS = {
-  loginMin: 3,
-  loginMax: 30,
+  emailMax: 254,
+  displayNameMin: 2,
+  displayNameMax: 50,
   passwordMin: 8,
   passwordMax: 128,
   titleMax: 200,
@@ -13,4 +14,5 @@ export const LIMITS = {
   maxOptionsPerParticipantCap: 10,
 } as const;
 
-export const LOGIN_PATTERN = /^[A-Za-z0-9_.@-]+$/;
+/** Same loose check as the API: the confirmation email is the real validation. */
+export const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s.]+$/;

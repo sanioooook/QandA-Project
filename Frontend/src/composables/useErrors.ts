@@ -4,7 +4,7 @@ import { LIMITS } from '@/limits';
 
 /** Values interpolated into error messages that mention limits. */
 export const ERROR_PARAMS: Record<string, Record<string, number>> = {
-  login_length: { min: LIMITS.loginMin, max: LIMITS.loginMax },
+  name_length: { min: LIMITS.displayNameMin, max: LIMITS.displayNameMax },
   password_length: { min: LIMITS.passwordMin, max: LIMITS.passwordMax },
   title_length: { max: LIMITS.titleMax },
   description_length: { max: LIMITS.descriptionMax },

@@ -3,11 +3,36 @@ namespace QandA.Api.Domain;
 public class User
 {
     public int Id { get; set; }
-    public required string Login { get; set; }
-    /// <summary>Upper-cased login, used for case-insensitive uniqueness.</summary>
-    public required string NormalizedLogin { get; set; }
+    /// <summary>The login. Never shown to other users.</summary>
+    public required string Email { get; set; }
+    /// <summary>Upper-cased email, used for case-insensitive uniqueness.</summary>
+    public required string NormalizedEmail { get; set; }
+    /// <summary>Public name shown as survey author and voter.</summary>
+    public required string DisplayName { get; set; }
     public string PasswordHash { get; set; } = "";
+    /// <summary>Changes with the password; auth cookies carrying an older stamp are rejected.</summary>
+    public string SecurityStamp { get; set; } = NewStamp();
+    public DateTimeOffset? EmailConfirmedAt { get; set; }
+    /// <summary>Language of the emails sent to the user (uk, en, ru).</summary>
+    public string Locale { get; set; } = "uk";
     public DateTimeOffset CreatedAt { get; set; }
+
+    public static string NewStamp() => Guid.NewGuid().ToString("N");
+}
+
+public enum TokenPurpose { EmailConfirmation, PasswordReset }
+
+/// <summary>Single-use emailed token. Only its SHA-256 hash is stored.</summary>
+public class UserToken
+{
+    public int Id { get; set; }
+    public int UserId { get; set; }
+    public User User { get; set; } = null!;
+    public TokenPurpose Purpose { get; set; }
+    public required string TokenHash { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? UsedAt { get; set; }
 }
 
 public class Survey

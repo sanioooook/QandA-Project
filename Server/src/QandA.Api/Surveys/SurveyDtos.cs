@@ -25,7 +25,7 @@ public record Paged<T>(IReadOnlyList<T> Items, int Total, int Page, int PageSize
 public record SurveySummary(
     Guid Id,
     string Title,
-    UserDto Author,
+    PublicUserDto Author,
     DateTimeOffset CreatedAt,
     DateTimeOffset? PublishedAt,
     DateTimeOffset? Deadline,
@@ -34,7 +34,7 @@ public record SurveySummary(
     int VoterCount,
     bool HasVoted);
 
-public record VoterDto(int UserId, string Login, DateTimeOffset VotedAt);
+public record VoterDto(int UserId, string Name, DateTimeOffset VotedAt);
 
 /// <param name="Voters">Only filled for the survey author; null for everyone else.</param>
 public record OptionDto(int Id, string Text, int Votes, string? AddedBy, IReadOnlyList<VoterDto>? Voters);
@@ -43,7 +43,7 @@ public record SurveyDetails(
     Guid Id,
     string Title,
     string? Description,
-    UserDto Author,
+    PublicUserDto Author,
     DateTimeOffset CreatedAt,
     DateTimeOffset? PublishedAt,
     DateTimeOffset? Deadline,

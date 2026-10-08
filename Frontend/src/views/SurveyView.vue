@@ -11,6 +11,7 @@ import { useFormat } from '@/composables/useFormat';
 import { useNow } from '@/composables/useNow';
 import { LIMITS } from '@/limits';
 import { useSurveysStore } from '@/stores/surveys';
+import { useAuthStore } from '@/stores/auth';
 import { useToastsStore } from '@/stores/toasts';
 import { clock, effectiveStatus, remaining } from '@/utils/deadline';
 import ShareDialog from '@/components/ShareDialog.vue';
@@ -21,6 +22,7 @@ const props = defineProps<{ id: string }>();
 const { t } = useI18n();
 const router = useRouter();
 const store = useSurveysStore();
+const auth = useAuthStore();
 const toasts = useToastsStore();
 const { errorMessage, fieldErrors } = useErrors();
 const { date } = useFormat();
@@ -163,7 +165,7 @@ async function remove() {
         <h1 class="title">{{ survey.title }}</h1>
         <p v-if="survey.description" class="description">{{ survey.description }}</p>
         <p class="meta muted">
-          {{ t('survey.by', { author: survey.author.login }) }} ·
+          {{ t('survey.by', { author: survey.author.name }) }} ·
           {{ survey.publishedAt ? t('survey.published', { date: date(survey.publishedAt) }) : t('survey.created', { date: date(survey.createdAt) }) }}
         </p>
       </header>
@@ -202,7 +204,7 @@ async function remove() {
               />
               <span class="text">
                 {{ option.text }}
-                <small v-if="option.addedBy" class="muted">{{ t('survey.addedBy', { login: option.addedBy }) }}</small>
+                <small v-if="option.addedBy" class="muted">{{ t('survey.addedBy', { name: option.addedBy }) }}</small>
               </span>
               <span class="result">
                 <strong>{{ percent(option) }}%</strong>
@@ -214,7 +216,7 @@ async function remove() {
               <summary>{{ t('survey.votersTitle') }} ({{ option.voters.length }})</summary>
               <ul>
                 <li v-for="voter in option.voters" :key="voter.userId">
-                  <span>{{ voter.login }}</span>
+                  <span>{{ voter.name }}</span>
                   <time class="muted" :datetime="voter.votedAt">{{ date(voter.votedAt) }}</time>
                 </li>
               </ul>
@@ -227,6 +229,13 @@ async function remove() {
           <span>{{ t('survey.totalVotes') }}: {{ t('survey.votes', survey.totalVotes) }}</span>
           <span v-if="survey.isAuthor && survey.status !== 'draft'">{{ t('survey.authorOnly') }}</span>
         </div>
+
+        <div v-if="status === 'active' && !auth.isLoggedIn" class="cta">
+          <span>{{ t('survey.signInToVote') }}</span>
+          <RouterLink :to="{ name: 'login', query: { redirect: `/surveys/${survey.id}` } }" class="btn btn-primary btn-sm">{{ t('nav.login') }}</RouterLink>
+          <RouterLink :to="{ name: 'register', query: { redirect: `/surveys/${survey.id}` } }" class="btn btn-sm">{{ t('nav.register') }}</RouterLink>
+        </div>
+        <p v-else-if="status === 'active' && auth.needsConfirmation" class="alert alert-warning">{{ t('survey.confirmToVote') }}</p>
 
         <div v-if="canVote" class="vote-actions">
           <button type="button" class="btn btn-primary" :disabled="busy || !dirty || selection.length === 0" @click="submitVote">
@@ -493,6 +502,21 @@ async function remove() {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-soft);
+}
+
+.cta span {
+  margin-right: auto;
+  font-weight: 600;
 }
 
 .vote-actions {

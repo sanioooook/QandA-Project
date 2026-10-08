@@ -6,16 +6,14 @@ using QandA.Api.Domain;
 
 namespace QandA.Api.Surveys;
 
-public class SurveyService(AppDbContext db, TimeProvider clock)
+public class SurveyService(AppDbContext db, ParticipationPolicy participation, TimeProvider clock)
 {
-    public static SurveyStatus StatusOf(DateTimeOffset? publishedAt, DateTimeOffset? deadline, DateTimeOffset now) =>
-        publishedAt is null ? SurveyStatus.Draft
-        : deadline is not null && deadline <= now ? SurveyStatus.Closed
-        : SurveyStatus.Active;
-
     public async Task<Paged<SurveySummary>> ListAsync(
-        int userId, SurveyScope scope, SurveyStatus? status, int page, int pageSize, CancellationToken ct)
+        int? userId, SurveyScope scope, SurveyStatus? status, int page, int pageSize, CancellationToken ct)
     {
+        if (userId is null && scope != SurveyScope.Active)
+            throw AppException.Unauthorized("unauthorized", "Sign in to see your surveys.");
+
         var now = clock.GetUtcNow();
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, Limits.PageSizeMax);
@@ -46,7 +44,7 @@ public class SurveyService(AppDbContext db, TimeProvider clock)
                 s.Id,
                 s.Title,
                 s.AuthorId,
-                AuthorLogin = s.Author.Login,
+                AuthorName = s.Author.DisplayName,
                 s.CreatedAt,
                 s.PublishedAt,
                 s.Deadline,
@@ -57,20 +55,20 @@ public class SurveyService(AppDbContext db, TimeProvider clock)
             .ToListAsync(ct);
 
         var items = rows.Select(r => new SurveySummary(
-            r.Id, r.Title, new UserDto(r.AuthorId, r.AuthorLogin), r.CreatedAt, r.PublishedAt, r.Deadline,
-            StatusOf(r.PublishedAt, r.Deadline, now), r.OptionCount, r.VoterCount, r.HasVoted)).ToList();
+            r.Id, r.Title, new PublicUserDto(r.AuthorId, r.AuthorName), r.CreatedAt, r.PublishedAt, r.Deadline,
+            SurveyRules.StatusOf(r.PublishedAt, r.Deadline, now), r.OptionCount, r.VoterCount, r.HasVoted)).ToList();
 
         return new Paged<SurveySummary>(items, total, page, pageSize);
     }
 
-    public async Task<SurveyDetails> GetAsync(Guid id, int userId, CancellationToken ct)
+    public async Task<SurveyDetails> GetAsync(Guid id, int? userId, CancellationToken ct)
     {
         var now = clock.GetUtcNow();
         var s = await db.Surveys.AsNoTracking()
             .Where(x => x.Id == id)
             .Select(x => new
             {
-                x.Id, x.Title, x.Description, x.AuthorId, AuthorLogin = x.Author.Login, x.CreatedAt, x.PublishedAt,
+                x.Id, x.Title, x.Description, x.AuthorId, AuthorName = x.Author.DisplayName, x.CreatedAt, x.PublishedAt,
                 x.Deadline, x.MaxVotesPerUser, x.AllowParticipantOptions, x.MaxOptionsPerParticipant,
             })
             .SingleOrDefaultAsync(ct);
@@ -83,7 +81,7 @@ public class SurveyService(AppDbContext db, TimeProvider clock)
         var options = await db.Options.AsNoTracking()
             .Where(o => o.SurveyId == id)
             .OrderBy(o => o.Position).ThenBy(o => o.Id)
-            .Select(o => new { o.Id, o.Text, Votes = o.Votes.Count, AddedBy = o.AddedBy != null ? o.AddedBy.Login : null })
+            .Select(o => new { o.Id, o.Text, Votes = o.Votes.Count, AddedBy = o.AddedBy != null ? o.AddedBy.DisplayName : null })
             .ToListAsync(ct);
 
         var votes = db.Votes.AsNoTracking().Where(v => v.SurveyId == id);
@@ -96,21 +94,23 @@ public class SurveyService(AppDbContext db, TimeProvider clock)
         {
             voters = (await votes
                     .OrderBy(v => v.VotedAt)
-                    .Select(v => new { v.OptionId, Voter = new VoterDto(v.UserId, v.User.Login, v.VotedAt) })
+                    .Select(v => new { v.OptionId, Voter = new VoterDto(v.UserId, v.User.DisplayName, v.VotedAt) })
                     .ToListAsync(ct))
                 .ToLookup(v => v.OptionId, v => v.Voter);
         }
 
-        var status = StatusOf(s.PublishedAt, s.Deadline, now);
+        var status = SurveyRules.StatusOf(s.PublishedAt, s.Deadline, now);
+        var mayParticipate = await participation.IsAllowedAsync(userId, ct);
         var canAddOption = status == SurveyStatus.Active
+            && mayParticipate
             && options.Count < Limits.OptionsMax
             && (isAuthor || (s.AllowParticipantOptions && myAdded < s.MaxOptionsPerParticipant));
 
         return new SurveyDetails(
-            s.Id, s.Title, s.Description, new UserDto(s.AuthorId, s.AuthorLogin), s.CreatedAt, s.PublishedAt, s.Deadline,
+            s.Id, s.Title, s.Description, new PublicUserDto(s.AuthorId, s.AuthorName), s.CreatedAt, s.PublishedAt, s.Deadline,
             status, s.MaxVotesPerUser, s.AllowParticipantOptions, s.MaxOptionsPerParticipant, isAuthor,
             voterCount, options.Sum(o => o.Votes), myVotes, myAdded,
-            CanVote: status == SurveyStatus.Active,
+            CanVote: status == SurveyStatus.Active && mayParticipate,
             CanAddOption: canAddOption,
             options.Select(o => new OptionDto(o.Id, o.Text, o.Votes, o.AddedBy, voters?[o.Id].ToList())).ToList());
     }
@@ -118,7 +118,8 @@ public class SurveyService(AppDbContext db, TimeProvider clock)
     public async Task<SurveyDetails> CreateAsync(SurveyInput input, int userId, CancellationToken ct)
     {
         var now = clock.GetUtcNow();
-        var valid = Validate(input, now);
+        await participation.EnsureAllowedAsync(userId, ct);
+        var valid = SurveyRules.Validate(input, now);
         var survey = new Survey
         {
             Title = valid.Title,
@@ -138,7 +139,7 @@ public class SurveyService(AppDbContext db, TimeProvider clock)
         if (survey.PublishedAt is not null)
             throw AppException.Conflict("survey_published", "A published survey can no longer be edited.");
 
-        var valid = Validate(input, now);
+        var valid = SurveyRules.Validate(input, now);
         db.Options.RemoveRange(survey.Options);
         survey.Options.Clear();
         Apply(survey, valid, now);
@@ -150,6 +151,7 @@ public class SurveyService(AppDbContext db, TimeProvider clock)
     {
         var now = clock.GetUtcNow();
         var survey = await LoadOwnAsync(id, userId, ct);
+        await participation.EnsureAllowedAsync(userId, ct);
         if (survey.PublishedAt is not null)
             throw AppException.Conflict("already_published", "The survey is already published.");
         if (survey.Deadline is not null && survey.Deadline <= now)
@@ -175,6 +177,7 @@ public class SurveyService(AppDbContext db, TimeProvider clock)
         await LockParticipantAsync(id, userId, ct);
 
         var survey = await LoadVotableAsync(id, userId, ct);
+        await participation.EnsureAllowedAsync(userId, ct);
         if (optionIds.Count > survey.MaxVotesPerUser)
             throw AppException.Validation("too_many_votes", $"You can vote for at most {survey.MaxVotesPerUser} option(s).");
 
@@ -203,6 +206,7 @@ public class SurveyService(AppDbContext db, TimeProvider clock)
         await LockParticipantAsync(id, userId, ct);
 
         var survey = await LoadVotableAsync(id, userId, ct);
+        await participation.EnsureAllowedAsync(userId, ct);
         var isAuthor = survey.AuthorId == userId;
         if (!isAuthor && !survey.AllowParticipantOptions)
             throw AppException.Forbidden("This survey does not accept new options from participants.");
@@ -244,51 +248,7 @@ public class SurveyService(AppDbContext db, TimeProvider clock)
         return await GetAsync(id, userId, ct);
     }
 
-    private record ValidInput(
-        string Title, string? Description, List<string> Options, DateTimeOffset? Deadline,
-        int MaxVotesPerUser, bool AllowParticipantOptions, int MaxOptionsPerParticipant, bool Publish);
-
-    private static ValidInput Validate(SurveyInput input, DateTimeOffset now)
-    {
-        var title = (input.Title ?? "").Trim();
-        if (title.Length == 0)
-            throw AppException.Validation("title_required", "The question is required.", "title");
-        if (title.Length > Limits.TitleMax)
-            throw AppException.Validation("title_length", $"The question may be at most {Limits.TitleMax} characters.", "title");
-
-        var description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim();
-        if (description?.Length > Limits.DescriptionMax)
-            throw AppException.Validation("description_length", $"The description may be at most {Limits.DescriptionMax} characters.", "description");
-
-        var options = (input.Options ?? []).Select(o => (o ?? "").Trim()).ToList();
-        if (options.Any(o => o.Length == 0))
-            throw AppException.Validation("option_empty", "Options cannot be empty.", "options");
-        if (options.Any(o => o.Length > Limits.OptionTextMax))
-            throw AppException.Validation("option_length", $"An option may be at most {Limits.OptionTextMax} characters.", "options");
-        if (options.Count < Limits.OptionsMin)
-            throw AppException.Validation("options_min", $"Add at least {Limits.OptionsMin} options.", "options");
-        if (options.Count > Limits.OptionsMax)
-            throw AppException.Validation("options_max", $"A survey may have at most {Limits.OptionsMax} options.", "options");
-        if (options.Distinct(StringComparer.OrdinalIgnoreCase).Count() != options.Count)
-            throw AppException.Validation("option_duplicate", "Options must be unique.", "options");
-
-        if (input.MaxVotesPerUser < 1 || input.MaxVotesPerUser > Limits.MaxVotesPerUserCap)
-            throw AppException.Validation("max_votes_range", $"Votes per participant must be 1-{Limits.MaxVotesPerUserCap}.", "maxVotesPerUser");
-        if (!input.AllowParticipantOptions && input.MaxVotesPerUser > options.Count)
-            throw AppException.Validation("max_votes_exceeds_options", "Votes per participant cannot exceed the number of options.", "maxVotesPerUser");
-        if (input.AllowParticipantOptions
-            && (input.MaxOptionsPerParticipant < 1 || input.MaxOptionsPerParticipant > Limits.MaxOptionsPerParticipantCap))
-            throw AppException.Validation("max_options_range", $"Options per participant must be 1-{Limits.MaxOptionsPerParticipantCap}.", "maxOptionsPerParticipant");
-
-        var deadline = input.Deadline?.ToUniversalTime();
-        if (deadline is not null && deadline <= now)
-            throw AppException.Validation("deadline_past", "The deadline must be in the future.", "deadline");
-
-        return new ValidInput(title, description, options, deadline, input.MaxVotesPerUser, input.AllowParticipantOptions,
-            input.AllowParticipantOptions ? input.MaxOptionsPerParticipant : 1, input.Publish);
-    }
-
-    private static void Apply(Survey survey, ValidInput valid, DateTimeOffset now)
+    private static void Apply(Survey survey, SurveyRules.ValidInput valid, DateTimeOffset now)
     {
         survey.Title = valid.Title;
         survey.Description = valid.Description;
@@ -319,7 +279,7 @@ public class SurveyService(AppDbContext db, TimeProvider clock)
         var survey = await db.Surveys.AsNoTracking().SingleOrDefaultAsync(s => s.Id == id, ct);
         if (survey is null || (survey.PublishedAt is null && survey.AuthorId != userId))
             throw AppException.NotFound("Survey not found.");
-        switch (StatusOf(survey.PublishedAt, survey.Deadline, clock.GetUtcNow()))
+        switch (SurveyRules.StatusOf(survey.PublishedAt, survey.Deadline, clock.GetUtcNow()))
         {
             case SurveyStatus.Draft:
                 throw AppException.Conflict("survey_not_published", "The survey is not published yet.");
