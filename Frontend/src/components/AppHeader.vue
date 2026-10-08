@@ -1,0 +1,159 @@
+<script setup lang="ts">
+import { storeToRefs } from 'pinia';
+import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
+import AppIcon from '@/components/AppIcon.vue';
+import PrefsControls from '@/components/PrefsControls.vue';
+import { useAuthStore } from '@/stores/auth';
+
+const { t } = useI18n();
+const router = useRouter();
+const auth = useAuthStore();
+const { user, isLoggedIn } = storeToRefs(auth);
+
+async function logout() {
+  await auth.logout();
+  await router.push({ name: 'login' });
+}
+</script>
+
+<template>
+  <header class="header">
+    <div class="bar">
+      <RouterLink :to="{ name: 'active' }" class="brand">
+        <img src="/favicon.svg" alt="" width="28" height="28" />
+        <span>{{ t('app.name') }}</span>
+      </RouterLink>
+
+      <nav v-if="isLoggedIn" class="nav" aria-label="Main">
+        <RouterLink :to="{ name: 'active' }">{{ t('nav.active') }}</RouterLink>
+        <RouterLink :to="{ name: 'mine' }">{{ t('nav.mine') }}</RouterLink>
+        <RouterLink :to="{ name: 'voted' }">{{ t('nav.voted') }}</RouterLink>
+      </nav>
+
+      <div class="actions">
+        <PrefsControls />
+        <template v-if="isLoggedIn">
+          <RouterLink :to="{ name: 'create' }" class="btn btn-primary btn-sm new" :aria-label="t('nav.newSurvey')">
+            <AppIcon name="plus" :size="16" />
+            <span>{{ t('nav.newSurvey') }}</span>
+          </RouterLink>
+          <span class="user" :title="t('nav.signedInAs', { login: user?.login })">
+            <span class="avatar" aria-hidden="true">{{ user?.login.charAt(0).toUpperCase() }}</span>
+            <span class="login">{{ user?.login }}</span>
+          </span>
+          <button type="button" class="icon-btn" :title="t('nav.logout')" :aria-label="t('nav.logout')" @click="logout">
+            <AppIcon name="logout" />
+          </button>
+        </template>
+      </div>
+    </div>
+  </header>
+</template>
+
+<style scoped>
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 10px 16px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+}
+
+.brand:hover {
+  text-decoration: none;
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.nav a {
+  padding: 7px 12px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.nav a:hover {
+  color: var(--text);
+  background: var(--surface-2);
+  text-decoration: none;
+}
+
+.nav a.router-link-exact-active {
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.user {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 160px;
+  font-weight: 600;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.85rem;
+}
+
+.login {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 960px) {
+  .login,
+  .new span {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .nav {
+    order: 3;
+    width: 100%;
+  }
+}
+</style>
