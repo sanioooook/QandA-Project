@@ -224,7 +224,7 @@ const minDate = computed(() => todayInput(zone.value));
             <input
               id="max-votes"
               v-model.number="form.maxVotesPerUser"
-              class="input"
+              class="input count"
               type="number"
               min="1"
               :max="maxVotesLimit"
@@ -279,12 +279,12 @@ const minDate = computed(() => todayInput(zone.value));
           <span>{{ t('form.allowOptions') }}</span>
         </label>
 
-        <div v-if="form.allowParticipantOptions" class="field narrow">
+        <div v-if="form.allowParticipantOptions" class="field">
           <label for="max-options">{{ t('form.maxOptions') }}</label>
           <input
             id="max-options"
             v-model.number="form.maxOptionsPerParticipant"
-            class="input"
+            class="input count"
             type="number"
             min="1"
             :max="LIMITS.maxOptionsPerParticipantCap"
@@ -361,7 +361,8 @@ fieldset {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  /* The deadline row (date, time, clear) needs ~300px, so the columns stack before it would overflow. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   gap: 16px;
 }
 
@@ -376,11 +377,12 @@ fieldset {
 }
 
 .deadline-row .time {
-  flex: 0 0 120px;
+  flex: 0 1 120px;
 }
 
-.narrow {
-  max-width: 280px;
+/* Small counts (1-30): a short field reads as "a number", the full width looked like a text box. */
+.count {
+  max-width: 120px;
 }
 
 .footer {
