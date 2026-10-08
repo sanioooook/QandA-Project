@@ -144,6 +144,24 @@ public class EmailFlowTests(EmailApiFactory factory) : IClassFixture<EmailApiFac
     }
 
     [Fact]
+    public async Task Emails_follow_the_language_saved_on_the_account()
+    {
+        var (client, email) = await RegisterAsync("uk");
+        Assert.Equal("Підтвердіть email у QandA", factory.Outbox.To(email).Single().Subject);
+
+        await (await client.PutAsync("/api/account/profile", new { locale = "en" })).ShouldBe(HttpStatusCode.OK);
+        await (await client.PostAsync("/api/auth/resend-confirmation")).ShouldBe(HttpStatusCode.NoContent);
+        await (await client.PostAsync("/api/auth/change-password", new { currentPassword = ApiClient.Password, newPassword = "NewSecret456" }))
+            .ShouldBe(HttpStatusCode.OK);
+        // No language in the request: the account's language is used.
+        await (await Anonymous().PostAsync("/api/auth/forgot-password", new { email })).ShouldBe(HttpStatusCode.NoContent);
+
+        Assert.Equal(
+            ["Підтвердіть email у QandA", "Confirm your email for QandA", "Your QandA password was changed", "Reset your QandA password"],
+            factory.Outbox.To(email).Select(m => m.Subject));
+    }
+
+    [Fact]
     public async Task Email_config_is_advertised_to_the_client()
     {
         var config = await Anonymous().GetJsonAsync<AuthConfigDto>("/api/auth/config");
