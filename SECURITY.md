@@ -1,21 +1,11 @@
 # Security Policy
 
-## Supported Versions
+## Supported versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+Only the [latest release](https://github.com/sanioooook/QandA-Project/releases/latest) gets fixes. Update by pulling the new `docker-compose.yml` from that release (see the README).
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+## Reporting a vulnerability
 
-## Reporting a Vulnerability
+Please do not open a public issue. Report it privately through GitHub's **Report a vulnerability** button on the [Security tab](https://github.com/sanioooook/QandA-Project/security) of this repository, with steps to reproduce and the version you tested.
 
-Use this section to tell people how to report a vulnerability.
-
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+QandA is a personal project, so there is no guaranteed response time, but reports are read and valid ones are fixed in the next release.
