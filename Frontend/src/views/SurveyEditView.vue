@@ -240,17 +240,20 @@ const minDate = computed(() => todayInput(zone.value));
               <span>{{ t('form.allowOptions') }}</span>
             </label>
 
-            <div v-if="form.allowParticipantOptions" class="field nested">
-              <label for="max-options">{{ t('form.maxOptions') }}</label>
-              <input
-                id="max-options"
-                v-model.number="form.maxOptionsPerParticipant"
-                class="input count"
-                type="number"
-                min="1"
-                :max="LIMITS.maxOptionsPerParticipantCap"
-                :aria-invalid="!!errors.maxOptionsPerParticipant"
-              />
+            <!-- A refinement of the checkbox, so it reads as one line under it rather than a new setting. -->
+            <div v-if="form.allowParticipantOptions" class="nested">
+              <div class="inline-count">
+                <label for="max-options">{{ t('form.maxOptions') }}</label>
+                <input
+                  id="max-options"
+                  v-model.number="form.maxOptionsPerParticipant"
+                  class="input count small"
+                  type="number"
+                  min="1"
+                  :max="LIMITS.maxOptionsPerParticipantCap"
+                  :aria-invalid="!!errors.maxOptionsPerParticipant"
+                />
+              </div>
               <p v-if="errors.maxOptionsPerParticipant" class="error-text">{{ errors.maxOptionsPerParticipant }}</p>
             </div>
           </div>
@@ -368,9 +371,29 @@ fieldset {
   gap: 16px;
 }
 
-/* Belongs to the checkbox above it. */
+/* Belongs to the checkbox above it: aligned with the checkbox text, one line. */
 .nested {
+  display: grid;
+  gap: 4px;
+  margin-top: -6px;
   padding-left: 28px;
+}
+
+.inline-count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.inline-count label {
+  color: var(--text-muted);
+}
+
+.count.small {
+  width: 72px;
+  min-height: 34px;
+  padding: 4px 10px;
 }
 
 .grid {

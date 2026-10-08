@@ -156,7 +156,7 @@ export default {
     deadlineSummary: 'Голосование завершится {date}',
     clearDeadline: 'Очистить',
     allowOptions: 'Участники могут добавлять свои варианты',
-    maxOptions: 'Сколько вариантов может добавить участник',
+    maxOptions: 'Лимит на участника',
     saveDraft: 'Сохранить черновик',
     publish: 'Опубликовать',
     saveChanges: 'Сохранить изменения',

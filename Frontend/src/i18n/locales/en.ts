@@ -154,7 +154,7 @@ export default {
     deadlineSummary: 'Voting ends {date}',
     clearDeadline: 'Clear',
     allowOptions: 'Participants can add their own options',
-    maxOptions: 'Options each participant can add',
+    maxOptions: 'Limit per participant',
     saveDraft: 'Save draft',
     publish: 'Publish',
     saveChanges: 'Save changes',
