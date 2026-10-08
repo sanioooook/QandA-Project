@@ -26,8 +26,10 @@ const status = computed(() => effectiveStatus(props.survey.status, props.survey.
     <h2 class="title">{{ survey.title }}</h2>
     <p class="meta muted">
       <UserAvatar :name="survey.author.name" :url="survey.author.avatarUrl" :size="20" />
-      {{ t('survey.by', { author: survey.author.name }) }} ·
-      {{ survey.publishedAt ? t('survey.published', { date: date(survey.publishedAt) }) : t('survey.created', { date: date(survey.createdAt) }) }}
+      <span>
+        {{ t('survey.by', { author: survey.author.name }) }} ·
+        {{ survey.publishedAt ? t('survey.published', { date: date(survey.publishedAt) }) : t('survey.created', { date: date(survey.createdAt) }) }}
+      </span>
     </p>
     <div class="stats muted">
       <span><AppIcon name="users" :size="15" />{{ t('survey.voters', survey.voterCount) }}</span>
@@ -80,9 +82,8 @@ const status = computed(() => effectiveStatus(props.survey.status, props.survey.
 
 .meta {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 4px 6px;
+  gap: 8px;
   font-size: 0.85rem;
 }
 

@@ -167,8 +167,10 @@ async function remove() {
         <p v-if="survey.description" class="description">{{ survey.description }}</p>
         <p class="meta muted">
           <UserAvatar :name="survey.author.name" :url="survey.author.avatarUrl" :size="22" />
-          {{ t('survey.by', { author: survey.author.name }) }} ·
-          {{ survey.publishedAt ? t('survey.published', { date: date(survey.publishedAt) }) : t('survey.created', { date: date(survey.createdAt) }) }}
+          <span>
+            {{ t('survey.by', { author: survey.author.name }) }} ·
+            {{ survey.publishedAt ? t('survey.published', { date: date(survey.publishedAt) }) : t('survey.created', { date: date(survey.createdAt) }) }}
+          </span>
         </p>
       </header>
 
@@ -357,9 +359,8 @@ async function remove() {
 
 .meta {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 4px 6px;
+  gap: 8px;
 }
 
 .voter {
