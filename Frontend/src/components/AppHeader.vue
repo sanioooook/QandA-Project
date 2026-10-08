@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppLogo from '@/components/AppLogo.vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { computed } from 'vue';
@@ -18,7 +19,7 @@ const { isLoggedIn, initialized } = storeToRefs(useAuthStore());
   <header class="header">
     <div class="bar">
       <RouterLink :to="{ name: 'active' }" class="brand">
-        <img src="/favicon.svg" alt="" width="28" height="28" />
+        <AppLogo :size="28" />
         <span>{{ t('app.name') }}</span>
       </RouterLink>
 

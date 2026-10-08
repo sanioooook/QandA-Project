@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppLogo from '@/components/AppLogo.vue';
 import { useI18n } from 'vue-i18n';
 
 defineProps<{ title: string; subtitle?: string }>();
@@ -8,7 +9,7 @@ const { t } = useI18n();
 <template>
   <section class="auth">
     <div class="intro">
-      <img src="/favicon.svg" alt="" width="48" height="48" />
+      <AppLogo :size="48" />
       <p class="muted">{{ t('app.tagline') }}</p>
     </div>
     <div class="card panel">

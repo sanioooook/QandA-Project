@@ -1,5 +1,9 @@
 import { createRouter, createWebHistory, type RouteLocationNormalized, type RouteRecordRaw, type RouterHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+// Where almost every visit lands (lists, shared links): bundled with the app to save a round trip.
+// The other pages load on demand.
+import SurveyListView from '@/views/SurveyListView.vue';
+import SurveyView from '@/views/SurveyView.vue';
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -18,12 +22,12 @@ export const routes: RouteRecordRaw[] = [
   { path: '/reset-password', name: 'reset-password', component: () => import('@/views/ResetPasswordView.vue') },
   { path: '/confirm-email', name: 'confirm-email', component: () => import('@/views/ConfirmEmailView.vue') },
   // Published surveys and results are public; voting asks for an account.
-  { path: '/surveys', name: 'active', component: () => import('@/views/SurveyListView.vue'), props: { scope: 'active' } },
-  { path: '/my', name: 'mine', component: () => import('@/views/SurveyListView.vue'), props: { scope: 'mine' }, meta: { requiresAuth: true } },
-  { path: '/voted', name: 'voted', component: () => import('@/views/SurveyListView.vue'), props: { scope: 'voted' }, meta: { requiresAuth: true } },
+  { path: '/surveys', name: 'active', component: SurveyListView, props: { scope: 'active' } },
+  { path: '/my', name: 'mine', component: SurveyListView, props: { scope: 'mine' }, meta: { requiresAuth: true } },
+  { path: '/voted', name: 'voted', component: SurveyListView, props: { scope: 'voted' }, meta: { requiresAuth: true } },
   { path: '/surveys/new', name: 'create', component: () => import('@/views/SurveyEditView.vue'), meta: { requiresAuth: true } },
   { path: '/surveys/:id/edit', name: 'edit', component: () => import('@/views/SurveyEditView.vue'), props: true, meta: { requiresAuth: true } },
-  { path: '/surveys/:id', name: 'survey', component: () => import('@/views/SurveyView.vue'), props: true },
+  { path: '/surveys/:id', name: 'survey', component: SurveyView, props: true },
   { path: '/account', name: 'account', component: () => import('@/views/AccountView.vue'), meta: { requiresAuth: true } },
   { path: '/account/password', name: 'change-password', component: () => import('@/views/ChangePasswordView.vue'), meta: { requiresAuth: true } },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') },
