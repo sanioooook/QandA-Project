@@ -1,5 +1,44 @@
 # QandA-Project
 
+Голосовалка в духе Google Forms: регистрация, опросы с черновиками и публикацией, ссылка для друзей, дедлайн, лимиты голосов и своих вариантов, автор видит, кто за что голосовал.
+
+Проект 2021 года (учебный, ТЗ ниже), в 2026 переписан на актуальный стек.
+
+## Стек
+
+- **API** (`Server/`): .NET 10, ASP.NET Core, EF Core 10 + PostgreSQL 16, cookie-аутентификация, пароли через `PasswordHasher` (PBKDF2)
+- **Web** (`Frontend/`): Vue 3, Vite, TypeScript, Pinia, vue-router, vue-i18n (UA/EN/RU), светлая/тёмная тема, без UI-библиотек
+- **Тесты**: xUnit v3 (интеграционные, против настоящего PostgreSQL), Vitest + Vue Test Utils
+- Всё запускается в Docker, локально ставить Node/.NET не нужно
+
+## Запуск
+
+```bash
+docker compose up -d --build
+```
+
+Приложение: http://localhost:8080 (порт меняется через `WEB_PORT`). Миграции БД применяются при старте API.
+
+Режим разработки с hot reload (Vite на http://localhost:5173, `node_modules` в docker volume):
+
+```bash
+docker compose --profile dev up web-dev
+```
+
+## Тесты
+
+```bash
+docker compose --profile test run --rm --build api-tests
+```
+
+```bash
+docker compose --profile test run --rm --build web-tests
+```
+
+---
+
+# Исходное ТЗ (2021)
+
 Цель: все, что вы учили по кусочкам - собрать в одно целое. Понять как строить весь стек приложения и как его разные слои взаимодействуют. Немного пощупать VueJS. Ваше приложение не будет соответсвовать всем современным стандартам и это не страшно. Позже вы можете вернуться к нему и имея больший опыт, отрефакторить. 
 
 Технические требования
