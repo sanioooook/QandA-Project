@@ -13,6 +13,7 @@ import { LIMITS } from '@/limits';
 import { useSurveysStore } from '@/stores/surveys';
 import { useToastsStore } from '@/stores/toasts';
 import { clock, effectiveStatus, remaining } from '@/utils/deadline';
+import ShareDialog from '@/components/ShareDialog.vue';
 import NotFoundView from './NotFoundView.vue';
 
 const props = defineProps<{ id: string }>();
@@ -129,16 +130,8 @@ async function addOption() {
 }
 
 // --- author actions -----------------------------------------------------
+// The share link uses the address the app was opened from, so it works on any host without configuration.
 const shareUrl = computed(() => `${window.location.origin}/surveys/${props.id}`);
-
-async function copyLink() {
-  try {
-    await navigator.clipboard.writeText(shareUrl.value);
-    toasts.success(t('toast.linkCopied'));
-  } catch {
-    (document.getElementById('share-url') as HTMLInputElement | null)?.select();
-  }
-}
 
 const publish = () => run(() => store.publish(props.id), t('toast.published'));
 
@@ -159,6 +152,7 @@ async function remove() {
   <div v-else class="layout">
     <article class="main card">
       <header class="head">
+        <ShareDialog v-if="survey.status !== 'draft'" class="share" :url="shareUrl" :title="survey.title" />
         <div class="badges">
           <StatusBadge :status="status" />
           <span v-if="survey.deadline" class="deadline muted" :title="date(survey.deadline)">
@@ -270,11 +264,6 @@ async function remove() {
     </article>
 
     <aside v-if="survey.isAuthor" class="side">
-      <div v-if="survey.status !== 'draft'" class="card panel">
-        <h2><AppIcon name="link" :size="17" /> {{ t('survey.share') }}</h2>
-        <input id="share-url" class="input" :value="shareUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
-        <button type="button" class="btn btn-block" @click="copyLink">{{ t('survey.copyLink') }}</button>
-      </div>
       <div class="card panel">
         <button v-if="survey.status === 'draft'" type="button" class="btn btn-primary btn-block" :disabled="busy" @click="publish">
           <AppIcon name="send" :size="16" />{{ t('survey.publish') }}
@@ -311,8 +300,20 @@ async function remove() {
 }
 
 .head {
+  position: relative;
   display: grid;
   gap: 8px;
+}
+
+/* Share icon in the top-right corner; the badges row leaves room for it. */
+.head :deep(.share-btn) {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+}
+
+.badges {
+  padding-right: 40px;
 }
 
 .badges {

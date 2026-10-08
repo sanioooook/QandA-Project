@@ -1,6 +1,9 @@
 import type en from './en';
 
 export default {
+  common: {
+    close: 'Закрыть',
+  },
   app: {
     name: 'QandA',
     tagline: 'Быстрые опросы для друзей и команд',
@@ -93,6 +96,8 @@ export default {
     optionsLeft: 'Можно добавить ещё {n} | Можно добавить ещё {n} | Можно добавить ещё {n}',
     share: 'Поделиться',
     copyLink: 'Копировать ссылку',
+    shareHint: 'Отправьте эту ссылку тем, кого хотите опросить.',
+    shareVia: 'Поделиться через…',
     publish: 'Опубликовать',
     edit: 'Редактировать',
     delete: 'Удалить',

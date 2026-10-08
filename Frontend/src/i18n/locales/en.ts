@@ -1,4 +1,7 @@
 export default {
+  common: {
+    close: 'Close',
+  },
   app: {
     name: 'QandA',
     tagline: 'Quick polls for friends and teams',
@@ -91,6 +94,8 @@ export default {
     optionsLeft: 'You can add {n} more | You can add {n} more',
     share: 'Share',
     copyLink: 'Copy link',
+    shareHint: 'Send this link to the people you want to ask.',
+    shareVia: 'Share via…',
     publish: 'Publish',
     edit: 'Edit',
     delete: 'Delete',
