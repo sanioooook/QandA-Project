@@ -11,7 +11,7 @@ const { t } = useI18n();
 const route = useRoute();
 // From a survey page, signing in should bring the guest back to that survey.
 const loginQuery = computed(() => (route.name === 'survey' ? { redirect: route.fullPath } : {}));
-const { isLoggedIn } = storeToRefs(useAuthStore());
+const { isLoggedIn, initialized } = storeToRefs(useAuthStore());
 </script>
 
 <template>
@@ -31,7 +31,9 @@ const { isLoggedIn } = storeToRefs(useAuthStore());
       </nav>
 
       <div class="actions">
-        <UserMenu v-if="isLoggedIn" />
+        <!-- Until the session is known, a placeholder: no flash of the guest buttons for a signed-in user. -->
+        <span v-if="!initialized" class="skeleton avatar-placeholder" aria-hidden="true" />
+        <UserMenu v-else-if="isLoggedIn" />
         <template v-else>
           <PrefsControls />
           <RouterLink :to="{ name: 'login', query: loginQuery }" class="btn btn-sm btn-ghost">{{ t('nav.login') }}</RouterLink>
@@ -108,6 +110,12 @@ const { isLoggedIn } = storeToRefs(useAuthStore());
   margin-left: auto;
 }
 
+
+.avatar-placeholder {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
 
 @media (max-width: 900px) {
   .nav {

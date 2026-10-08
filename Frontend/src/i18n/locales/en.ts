@@ -1,5 +1,6 @@
 export default {
   common: {
+    loading: 'Loading…',
     close: 'Close',
   },
   app: {

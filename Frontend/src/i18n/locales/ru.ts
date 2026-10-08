@@ -2,6 +2,7 @@ import type en from './en';
 
 export default {
   common: {
+    loading: 'Загрузка…',
     close: 'Закрыть',
   },
   app: {

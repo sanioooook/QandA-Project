@@ -6,6 +6,7 @@ import { ApiError } from '@/api/http';
 import type { SurveyDetails, SurveyInput } from '@/api/types';
 import AppIcon from '@/components/AppIcon.vue';
 import CharCount from '@/components/CharCount.vue';
+import FormSkeleton from '@/components/skeletons/FormSkeleton.vue';
 import { useErrors } from '@/composables/useErrors';
 import { useFormat } from '@/composables/useFormat';
 import { LIMITS } from '@/limits';
@@ -321,7 +322,10 @@ const minDate = computed(() => todayInput(zone.value));
         </div>
       </div>
     </form>
-    <div v-else class="skeleton" style="height: 420px" />
+    <div v-else aria-busy="true">
+      <span class="sr-only">{{ t('common.loading') }}</span>
+      <FormSkeleton />
+    </div>
   </section>
 </template>
 

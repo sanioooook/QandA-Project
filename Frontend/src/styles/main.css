@@ -353,6 +353,7 @@ textarea.input {
 }
 
 .skeleton {
+  display: block;
   border-radius: var(--radius-sm);
   background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
   background-size: 200% 100%;

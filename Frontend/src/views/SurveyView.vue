@@ -15,6 +15,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useToastsStore } from '@/stores/toasts';
 import { clock, effectiveStatus, remaining } from '@/utils/deadline';
 import ShareDialog from '@/components/ShareDialog.vue';
+import SurveySkeleton from '@/components/skeletons/SurveySkeleton.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
 import NotFoundView from './NotFoundView.vue';
 
@@ -158,7 +159,8 @@ async function remove() {
   <NotFoundView v-if="notFound" />
   <p v-else-if="loadError" class="alert alert-error" role="alert">{{ loadError }}</p>
   <div v-else-if="!survey" class="layout" aria-busy="true">
-    <div class="skeleton" style="height: 320px" />
+    <span class="sr-only">{{ t('common.loading') }}</span>
+    <SurveySkeleton />
   </div>
 
   <div v-else class="layout">

@@ -7,6 +7,7 @@ import type { SurveyScope, SurveyStatus } from '@/api/types';
 import AppIcon from '@/components/AppIcon.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import SurveyCard from '@/components/SurveyCard.vue';
+import SurveyCardSkeleton from '@/components/skeletons/SurveyCardSkeleton.vue';
 import { useErrors } from '@/composables/useErrors';
 import { useSurveysStore } from '@/stores/surveys';
 
@@ -86,7 +87,8 @@ const pageLink = (value: number) => ({ query: { ...route.query, page: value > 1 
     <p v-if="error" class="alert alert-error" role="alert">{{ error }}</p>
 
     <div v-if="!data && loading" class="grid" aria-busy="true">
-      <div v-for="i in 6" :key="i" class="skeleton placeholder" />
+      <span class="sr-only">{{ t('common.loading') }}</span>
+      <SurveyCardSkeleton v-for="i in 6" :key="i" />
     </div>
     <EmptyState v-else-if="data && data.items.length === 0" :text="titles.empty">
       <RouterLink v-if="scope !== 'voted'" :to="{ name: 'create' }" class="btn btn-primary">{{ t('nav.newSurvey') }}</RouterLink>
@@ -143,10 +145,6 @@ const pageLink = (value: number) => ({ query: { ...route.query, page: value > 1 
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   gap: 16px;
-}
-
-.placeholder {
-  height: 150px;
 }
 
 .pager {
