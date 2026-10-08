@@ -16,7 +16,7 @@ jobs:
     name: API tests (unit + integration on PostgreSQL)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: docker compose --profile test run --rm --build api-tests
       - if: always()
         run: docker compose --profile test down -v
@@ -25,5 +25,5 @@ jobs:
     name: Web typecheck + tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: docker compose --profile test run --rm --build web-tests
